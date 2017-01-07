@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Fixeds on Dominik&#39;s Blog</title>
+    <link>https://dinfuehr.github.io/fixed/index.xml</link>
+    <description>Recent content in Fixeds on Dominik&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 04 Jan 2017 08:47:14 +0100</lastBuildDate>
+    <atom:link href="https://dinfuehr.github.io/fixed/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>about</title>
+      <link>https://dinfuehr.github.io/about/</link>
+      <pubDate>Wed, 04 Jan 2017 08:47:14 +0100</pubDate>
+      
+      <guid>https://dinfuehr.github.io/about/</guid>
+      <description>&lt;p&gt;Hi, I am Dominik Inführ.
+I want to write about programming, compilers and VMs.
+We will see how this works out.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
