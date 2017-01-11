@@ -112,7 +112,7 @@ Marking one object means setting the mark-flag and recursively traversing throug
 A nice property of the marking phase is that cycles in the object graph are no problem.
 On the other hand you need to be careful to avoid stack overflows when you have deeply nested object graphs, so you probably shouldn&amp;rsquo;t implement marking through an recursive function call.
 That&amp;rsquo;s the reason I just add the objects into a &lt;a href=&#34;https://doc.rust-lang.org/std/vec/struct.Vec.html&#34;&gt;Vec&lt;/a&gt; instead of using the stack.
-When sweeping, the garbage collector runs through all allocated objects and frees unmarked objects.&lt;/p&gt;
+When sweeping, the garbage collector simply runs through all allocated objects and frees unmarked objects.&lt;/p&gt;
 
 &lt;p&gt;The GC really just uses libc&amp;rsquo;s &lt;code&gt;malloc&lt;/code&gt; for allocating objects and &lt;code&gt;free&lt;/code&gt; while &lt;em&gt;Sweeping&lt;/em&gt;.
 All allocated objects are connected in a single linked list.
@@ -174,7 +174,7 @@ I chose the fastest single-threaded Java implementation (dora does not support m
 
 &lt;p&gt;&lt;img src=&#34;https://dinfuehr.github.io/images/dora-bench-game.png&#34; alt=&#34;Benchmark results&#34; /&gt;&lt;/p&gt;
 
-&lt;p&gt;For &lt;code&gt;fannkuch-redux&lt;/code&gt; Dora is only 3.6 times slower than the Java equivalent running on OpenJDK (version 1.8.0_112), the benchmark results for &lt;code&gt;binarytrees&lt;/code&gt; are way worse: Dora is 26x slower.
+&lt;p&gt;For &lt;code&gt;fannkuch-redux&lt;/code&gt; Dora is only 3.5 times (40s to 138s) slower than the Java equivalent running on OpenJDK (version 1.8.0_112), the benchmark results for &lt;code&gt;binarytrees&lt;/code&gt; are worse: Dora is 14x slower (55s instead of 4s).
 This is easily explained: &lt;code&gt;binarytrees&lt;/code&gt; stresses the GC and the current implementation isn&amp;rsquo;t really the most efficient.
 We will later look into this benchmark in more detail.&lt;/p&gt;
 
@@ -204,16 +204,15 @@ All you need to do is to &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/m
 Dora also supports emitting garbage collection stats with &lt;code&gt;--gc-stats&lt;/code&gt;:&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;GC stats:
-	duration: 65394 ms
-	malloc duration: 25462 ms
-	collect duration: 17746 ms
-		mark duration: 1422 ms
-		sweep duration: 16323 ms
+	collect duration: 17715 ms
+	607475118 allocations
 	75 collections
 	29158805890 bytes allocated
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;We see that Dora spends 65 seconds just for allocating memory and collecting garbage.&lt;/p&gt;
+&lt;p&gt;We see that Dora spends 17 seconds alone for collecting garbage, this benchmarks makes over 600 million allocations to allocate a total of about 27GB memory.
+At first I also wanted to benchmark allocation duration but this was way too expensive.
+Just by removing those &lt;code&gt;time::precise_time_ns&lt;/code&gt; invocations reduced run-time from 110s to 55s.&lt;/p&gt;
 
 &lt;h3 id=&#34;using-rust&#34;&gt;Using Rust&lt;/h3&gt;
 
