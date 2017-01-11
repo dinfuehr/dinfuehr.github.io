@@ -158,9 +158,33 @@ Adding other platforms should be possible without touching the baseline compiler
 <p>Implementing the second ISA certainly helped making the architecture cleaner and unveiled two bugs I didn&rsquo;t notice on x86_64.
 It was also pretty interesting to implement instruction encoding, both for <a href="https://github.com/dinfuehr/dora/blob/master/src/cpu/x64/asm.rs">x86_64</a> and <a href="https://github.com/dinfuehr/dora/blob/master/src/cpu/arm64/asm.rs">AArch64</a>.
 I didn&rsquo;t implement instruction decoding myself, for this purpose I used the <a href="http://www.capstone-engine.org/">capstone</a> library.
-The generated machine-code can be emitted with <code>dora --emit-asm=all hello.dora</code>.
-There already exists a <a href="https://github.com/ebfe/rust-capstone">Rust wrapper</a> for the capstone libary.
-Although the README states that the bindings are incomplete, the wrapper supports all the features I need.</p>
+The generated machine-code can be emitted with <code>dora --emit-asm=all hello-world.dora</code>.
+A nice feature of the MacroAssembler is that comments can be added to the generated instructions.
+When disassembling the comments are printed along the disassembled machine instructions:</p>
+
+<pre><code>fn main() 0x7f33bab6d010
+  0x7f33bab6d010: pushq		%rbp
+  0x7f33bab6d011: movq		%rsp, %rbp
+  0x7f33bab6d014: subq		$0x10, %rsp
+		  ; prolog end
+
+
+		  ; load string
+  0x7f33bab6d018: movq		-0x17(%rip), %rax
+  0x7f33bab6d01f: movq		%rax, -8(%rbp)
+  0x7f33bab6d023: movq		-8(%rbp), %rdi
+		  ; call direct println(Str)
+  0x7f33bab6d027: movq		-0x2e(%rip), %rax
+  0x7f33bab6d02e: callq		*%rax
+
+		  ; epilog
+  0x7f33bab6d030: addq		$0x10, %rsp
+  0x7f33bab6d034: popq		%rbp
+  0x7f33bab6d035: retq
+</code></pre>
+
+<p>There already exists a <a href="https://github.com/ebfe/rust-capstone">Rust wrapper</a> for the capstone libary.
+Although the README states that the bindings are incomplete, the wrapper supported all the features I need.</p>
 
 <h3 id="the-dora-programming-language">The Dora programming language</h3>
 
@@ -200,13 +224,14 @@ Doras exception handling is similar to <a href="https://developer.apple.com/libr
 I like this syntax because it makes it obvious in the caller that an exception could occur.</p>
 
 <p>For runtime errors like failed assertions, the program is halted and the current stack trace is printed.
-Although exceptions and stack traces sound quite unspectacular, I was quite happy when this first worked.</p>
+Although exceptions and stack traces sound quite unspectacular, I was quite happy when this worked for the first time.</p>
 
 <p>Dora even supports classes and inheritance.
 It has <a href="https://github.com/dinfuehr/dora/blob/master/tests/pctor1.dora">primary</a> and <a href="https://github.com/dinfuehr/dora/blob/master/tests/ctor3.dora">secondary</a> constructors like <a href="https://kotlinlang.org/docs/reference/classes.html">Kotlin</a>.
 The keyword <a href="https://github.com/dinfuehr/dora/blob/master/tests/is1.dora"><code>is</code></a> is similar to Javas <code>instanceof</code>, while <a href="https://github.com/dinfuehr/dora/blob/master/tests/as1.dora"><code>as</code></a> is used for the checked cast (in Java you would write <code>(SomeClass) obj</code> for that).
 I implemented this check as described in this great <a href="https://www.researchgate.net/publication/221552851_Fast_subtype_checking_in_the_HotSpot_JVM">paper</a> from Cliff Click and John Rose.
-Unfortunately I haven&rsquo;t benchmarked my implementation of the <em>fast subtype check</em> yet, I</p>
+Unfortunately I haven&rsquo;t benchmarked my implementation of the <em>fast subtype check</em> yet.
+My implementation is a bit easier since Dora doesn&rsquo;t have interfaces or dynamically loaded classes.</p>
 
 <h3 id="garbage-collection">Garbage Collection</h3>
 
@@ -299,7 +324,7 @@ All time is spent in the generated machine-code, Dora is at fault not Rust.</p>
 
 <p>We can look deeper into the <code>binarytrees</code> benchmark and run the program with <a href="https://perf.wiki.kernel.org/index.php/Main_Page">perf</a>.
 perf can record stacktraces using sampling.
-Thanks to <a href="http://www.brendangregg.com/">Brendan Gregg</a> we can create <a href="https://github.com/brendangregg/FlameGraph">flame graphs</a> as interactive SVGs, which is pretty cool:</p>
+Thanks to <a href="http://www.brendangregg.com/">Brendan Gregg</a> we can create <a href="https://github.com/brendangregg/FlameGraph">flame graphs</a> as interactive SVGs from the collected stacktraces, which is pretty cool:</p>
 
 <p><a href="/images/perf-binarytrees.svg"><img src="/images/perf-binarytrees.svg" alt="binarytrees flame graph"></a></p>
 

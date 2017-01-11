@@ -47,9 +47,33 @@ Adding other platforms should be possible without touching the baseline compiler
 &lt;p&gt;Implementing the second ISA certainly helped making the architecture cleaner and unveiled two bugs I didn&amp;rsquo;t notice on x86_64.
 It was also pretty interesting to implement instruction encoding, both for &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/src/cpu/x64/asm.rs&#34;&gt;x86_64&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/src/cpu/arm64/asm.rs&#34;&gt;AArch64&lt;/a&gt;.
 I didn&amp;rsquo;t implement instruction decoding myself, for this purpose I used the &lt;a href=&#34;http://www.capstone-engine.org/&#34;&gt;capstone&lt;/a&gt; library.
-The generated machine-code can be emitted with &lt;code&gt;dora --emit-asm=all hello.dora&lt;/code&gt;.
-There already exists a &lt;a href=&#34;https://github.com/ebfe/rust-capstone&#34;&gt;Rust wrapper&lt;/a&gt; for the capstone libary.
-Although the README states that the bindings are incomplete, the wrapper supports all the features I need.&lt;/p&gt;
+The generated machine-code can be emitted with &lt;code&gt;dora --emit-asm=all hello-world.dora&lt;/code&gt;.
+A nice feature of the MacroAssembler is that comments can be added to the generated instructions.
+When disassembling the comments are printed along the disassembled machine instructions:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;fn main() 0x7f33bab6d010
+  0x7f33bab6d010: pushq		%rbp
+  0x7f33bab6d011: movq		%rsp, %rbp
+  0x7f33bab6d014: subq		$0x10, %rsp
+		  ; prolog end
+
+
+		  ; load string
+  0x7f33bab6d018: movq		-0x17(%rip), %rax
+  0x7f33bab6d01f: movq		%rax, -8(%rbp)
+  0x7f33bab6d023: movq		-8(%rbp), %rdi
+		  ; call direct println(Str)
+  0x7f33bab6d027: movq		-0x2e(%rip), %rax
+  0x7f33bab6d02e: callq		*%rax
+
+		  ; epilog
+  0x7f33bab6d030: addq		$0x10, %rsp
+  0x7f33bab6d034: popq		%rbp
+  0x7f33bab6d035: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;There already exists a &lt;a href=&#34;https://github.com/ebfe/rust-capstone&#34;&gt;Rust wrapper&lt;/a&gt; for the capstone libary.
+Although the README states that the bindings are incomplete, the wrapper supported all the features I need.&lt;/p&gt;
 
 &lt;h3 id=&#34;the-dora-programming-language&#34;&gt;The Dora programming language&lt;/h3&gt;
 
@@ -89,13 +113,14 @@ Doras exception handling is similar to &lt;a href=&#34;https://developer.apple.c
 I like this syntax because it makes it obvious in the caller that an exception could occur.&lt;/p&gt;
 
 &lt;p&gt;For runtime errors like failed assertions, the program is halted and the current stack trace is printed.
-Although exceptions and stack traces sound quite unspectacular, I was quite happy when this first worked.&lt;/p&gt;
+Although exceptions and stack traces sound quite unspectacular, I was quite happy when this worked for the first time.&lt;/p&gt;
 
 &lt;p&gt;Dora even supports classes and inheritance.
 It has &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/pctor1.dora&#34;&gt;primary&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/ctor3.dora&#34;&gt;secondary&lt;/a&gt; constructors like &lt;a href=&#34;https://kotlinlang.org/docs/reference/classes.html&#34;&gt;Kotlin&lt;/a&gt;.
 The keyword &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/is1.dora&#34;&gt;&lt;code&gt;is&lt;/code&gt;&lt;/a&gt; is similar to Javas &lt;code&gt;instanceof&lt;/code&gt;, while &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/as1.dora&#34;&gt;&lt;code&gt;as&lt;/code&gt;&lt;/a&gt; is used for the checked cast (in Java you would write &lt;code&gt;(SomeClass) obj&lt;/code&gt; for that).
 I implemented this check as described in this great &lt;a href=&#34;https://www.researchgate.net/publication/221552851_Fast_subtype_checking_in_the_HotSpot_JVM&#34;&gt;paper&lt;/a&gt; from Cliff Click and John Rose.
-Unfortunately I haven&amp;rsquo;t benchmarked my implementation of the &lt;em&gt;fast subtype check&lt;/em&gt; yet, I&lt;/p&gt;
+Unfortunately I haven&amp;rsquo;t benchmarked my implementation of the &lt;em&gt;fast subtype check&lt;/em&gt; yet.
+My implementation is a bit easier since Dora doesn&amp;rsquo;t have interfaces or dynamically loaded classes.&lt;/p&gt;
 
 &lt;h3 id=&#34;garbage-collection&#34;&gt;Garbage Collection&lt;/h3&gt;
 
@@ -188,7 +213,7 @@ All time is spent in the generated machine-code, Dora is at fault not Rust.&lt;/
 
 &lt;p&gt;We can look deeper into the &lt;code&gt;binarytrees&lt;/code&gt; benchmark and run the program with &lt;a href=&#34;https://perf.wiki.kernel.org/index.php/Main_Page&#34;&gt;perf&lt;/a&gt;.
 perf can record stacktraces using sampling.
-Thanks to &lt;a href=&#34;http://www.brendangregg.com/&#34;&gt;Brendan Gregg&lt;/a&gt; we can create &lt;a href=&#34;https://github.com/brendangregg/FlameGraph&#34;&gt;flame graphs&lt;/a&gt; as interactive SVGs, which is pretty cool:&lt;/p&gt;
+Thanks to &lt;a href=&#34;http://www.brendangregg.com/&#34;&gt;Brendan Gregg&lt;/a&gt; we can create &lt;a href=&#34;https://github.com/brendangregg/FlameGraph&#34;&gt;flame graphs&lt;/a&gt; as interactive SVGs from the collected stacktraces, which is pretty cool:&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&#34;https://dinfuehr.github.io/images/perf-binarytrees.svg&#34;&gt;&lt;img src=&#34;https://dinfuehr.github.io/images/perf-binarytrees.svg&#34; alt=&#34;binarytrees flame graph&#34;&gt;&lt;/a&gt;&lt;/p&gt;
 
