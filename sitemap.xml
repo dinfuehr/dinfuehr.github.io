@@ -12,11 +12,6 @@
   </url>
   
   <url>
-    <loc>https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/</loc>
-    <lastmod>2017-01-04T08:34:34+01:00</lastmod>
-  </url>
-  
-  <url>
     <loc>https://dinfuehr.github.io/blog/</loc>
     <lastmod>2017-04-20T20:33:37+02:00</lastmod>
     <priority>0</priority>

@@ -146,7 +146,7 @@ movk x0, 0x3344, lsl 32
 movk x0, 0x1122, lsl 48
 </code></pre>
 
-<h1 id="move-wide-immediates">Move wide immediates</h1>
+<h3 id="move-wide-immediates">Move wide immediates</h3>
 
 <p>The move instructions (<code>movz</code>, <code>movn</code> and <code>movk</code>) have space for a 16-bit unsigned immediate that can be shifted by either 0, 16, 32 or 48 bits (2 bits for the shift).</p>
 
@@ -173,7 +173,7 @@ All bits are 1 in this case, so with only <code>movz</code> and <code>movk</code
 
 <p><a href="https://github.com/v8/v8/blob/master/src/arm64/macro-assembler-arm64.cc#L164">v8</a> for example really determines whether it is more beneficial (this means less instructions) to encode an immediate via <code>movn</code> or <code>movz</code>.</p>
 
-<h1 id="add-sub-immediates">Add/Sub Immediates</h1>
+<h3 id="add-sub-immediates">Add/Sub Immediates</h3>
 
 <p>In addition to immediates in move instructions, some instructions like <code>add</code> or <code>sub</code> also accept an immediate as operand.
 This allows to encode some numbers directly into the instruction, instead of using a temporary register.
@@ -181,7 +181,7 @@ All instructions of the add/sub immediate instruction class allow a 12-bit unsig
 If you want to use these instructions with an immediate that can&rsquo;t be encoded in this format, you have no choice but to use a temporary register and possibly multiple instructions for initializing this register.
 Although negative numbers e.g. -1 (which is all ones) cannot be encoded with an <code>add</code> instruction, the instruction <code>sub</code> can be used to subtract 1: <code>sub x0, x0, 1</code>.</p>
 
-<h1 id="logical-immediates">Logical Immediates</h1>
+<h3 id="logical-immediates">Logical Immediates</h3>
 
 <p>There is another instruction class that allows immediates as an operand: logical immediate. This instruction class is used for <code>and</code> (bitwise and), <code>orr</code> (bitwise or), <code>eor</code> (bitwise exclusive or) and <code>ands</code> (bitwise and and set flags).
 This instruction class is the most complicated and non-intuitive (at least for me) and the reason I started to write this blog post.
@@ -296,14 +296,14 @@ At the same time it is not allowed to set all <code>x</code> to 1, since this wo
 </ul>
 
 <p>There was an interesting <a href="http://stackoverflow.com/a/33265035/727454">answer on Stack Overflow</a> that enumerates all 5334 possible 64-bit immediates with this encoding.
-I ported this [code to Ruby]() and dumped the fields <code>n</code>, <code>immr</code> and <code>imms</code> for all values.
-See here for the [full output]() of the script.
+I ported this <a href="https://gist.github.com/dinfuehr/9e1c2f28d0f912eae5e595207cb835c2">code to Ruby</a> and dumped the fields <code>n</code>, <code>immr</code> and <code>imms</code> for all values.
+See here for the <a href="https://gist.github.com/dinfuehr/51a01ac58c0b23e4de9aac313ed6a06a">full output</a> of the script.
 I verified the output by comparing all values to the output of the AArch64 assembler.
 Scrolling over all values, element sizes, rotations etc. should give you a quick overview of what numbers can be encoded with this representation.</p>
 
-<p>For some source code examples, see e.g. LLVM, which also handles <a href="https://github.com/llvm-mirror/llvm/blob/master/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L213">encoding</a> and <a href="https://github.com/llvm-mirror/llvm/blob/master/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L292">decoding</a> of logical immediates.</p>
+<p>For some source code examples, see e.g. LLVM, which also handles <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L213">encoding</a> and <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L292">decoding</a> of logical immediates.</p>
 
-<h1 id="other-immediates">Other immediates</h1>
+<h3 id="other-immediates">Other immediates</h3>
 
 <p>There are even more instruction classes that accept immediates as operands
 (There is even one with floating-point).
