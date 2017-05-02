@@ -6,8 +6,199 @@
     <description>Recent content in Blogs on Dominik&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 04 Jan 2017 08:34:34 +0100</lastBuildDate>
+    <lastBuildDate>Thu, 20 Apr 2017 20:33:37 +0200</lastBuildDate>
     <atom:link href="https://dinfuehr.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Encoding of immediate values on AArch64</title>
+      <link>https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/</link>
+      <pubDate>Thu, 20 Apr 2017 20:33:37 +0200</pubDate>
+      
+      <guid>https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/</guid>
+      <description>
+
+&lt;p&gt;AArch64 is an ISA with a fixed instruction width of 32-bit.
+This obviously means there is not enough space to store a 64-bit immediate in a single instruction.
+Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width.
+A 64-bit immediate on x86-64 is really just the sequence of bytes:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;mov rax, 0x1122334455667788
+# encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;A fixed-width ISA like ARM has to treat immediates differently.
+Assigning the same value to the register &lt;code&gt;x0&lt;/code&gt; takes four instructions:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;movz x0, 0x7788
+movk x0, 0x5566, lsl 16
+movk x0, 0x3344, lsl 32
+movk x0, 0x1122, lsl 48
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1 id=&#34;move-wide-immediates&#34;&gt;Move wide immediates&lt;/h1&gt;
+
+&lt;p&gt;The move instructions (&lt;code&gt;movz&lt;/code&gt;, &lt;code&gt;movn&lt;/code&gt; and &lt;code&gt;movk&lt;/code&gt;) have space for a 16-bit unsigned immediate that can be shifted by either 0, 16, 32 or 48 bits (2 bits for the shift).&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;movz&lt;/code&gt; assigns the given 16-bit value to the position given by the shift operand and &lt;code&gt;z&lt;/code&gt;eroes all other bits.
+&lt;code&gt;movk&lt;/code&gt; does the same but &lt;code&gt;k&lt;/code&gt;eeps the value of the other bits instead of zeroing them.
+So in the worst case a 64-bit immediate needs 4 instructions.
+But many common immediates can be encoded in less:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;# x0 = 0x10000
+movz x0, 0x1, lsl 16
+
+# x0 = 0x10001
+movz x0, 0x1
+movk x0, 0x1, lsl 16
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It is only necessary to initialize the 16-bit parts of the 64-bit register that are non-zero.
+Now that we have seen this, how can we encode -1?
+All bits are 1 in this case, so with only &lt;code&gt;movz&lt;/code&gt; and &lt;code&gt;movk&lt;/code&gt; we would have to use 4 instructions again.&lt;/p&gt;
+
+&lt;p&gt;For such numbers AArch64 features the &lt;code&gt;movn&lt;/code&gt; instruction that assigns the expression &lt;code&gt;~(imm16 &amp;lt;&amp;lt; shift)&lt;/code&gt; to the register.
+-1 can so be encoded in one single instruction: &lt;code&gt;movn x0, 0&lt;/code&gt;.
+&lt;code&gt;movn&lt;/code&gt; can also be combined with &lt;code&gt;movk&lt;/code&gt;, use it to set parts of the number that are not all ones.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/v8/v8/blob/master/src/arm64/macro-assembler-arm64.cc#L164&#34;&gt;v8&lt;/a&gt; for example really determines whether it is more beneficial (this means less instructions) to encode an immediate via &lt;code&gt;movn&lt;/code&gt; or &lt;code&gt;movz&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h1 id=&#34;add-sub-immediates&#34;&gt;Add/Sub Immediates&lt;/h1&gt;
+
+&lt;p&gt;In addition to immediates in move instructions, some instructions like &lt;code&gt;add&lt;/code&gt; or &lt;code&gt;sub&lt;/code&gt; also accept an immediate as operand.
+This allows to encode some numbers directly into the instruction, instead of using a temporary register.
+All instructions of the add/sub immediate instruction class allow a 12-bit unsigned immediate that can optionally be shifted by 12 bits (1 bit for the shift).
+If you want to use these instructions with an immediate that can&amp;rsquo;t be encoded in this format, you have no choice but to use a temporary register and possibly multiple instructions for initializing this register.
+Although negative numbers e.g. -1 (which is all ones) cannot be encoded with an &lt;code&gt;add&lt;/code&gt; instruction, the instruction &lt;code&gt;sub&lt;/code&gt; can be used to subtract 1: &lt;code&gt;sub x0, x0, 1&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h1 id=&#34;logical-immediates&#34;&gt;Logical Immediates&lt;/h1&gt;
+
+&lt;p&gt;There is another instruction class that allows immediates as an operand: logical immediate. This instruction class is used for &lt;code&gt;and&lt;/code&gt; (bitwise and), &lt;code&gt;orr&lt;/code&gt; (bitwise or), &lt;code&gt;eor&lt;/code&gt; (bitwise exclusive or) and &lt;code&gt;ands&lt;/code&gt; (bitwise and and set flags).
+This instruction class is the most complicated and non-intuitive (at least for me) and the reason I started to write this blog post.
+Let&amp;rsquo;s look into the definition from the ARM Reference Manual:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;The logical immediate instructions accept a bitmask immediate bimm32 or bimm64.
+Such an immediate consists EITHER of a single consecutive sequence with at least one non-zero bit, and at least one zero bit, within an element of 2, 4, 8, 16, 32 or 64 bits;
+the element then being replicated across the register width, or the bitwise inverse of such a value.
+The immediate values of all-zero and all-ones may not be encoded as a bitmask immediate, so an assembler must either generate an error for a logical instruction with such an immediate,
+or a programmer-friendly assembler may transform it into some other instruction which achieves the intended result.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;That&amp;rsquo;s quite a lot of information in such a short paragraph.
+I will try to describe this format in my own words:
+Logical immediate instructions have 13-bits for encoding the immediate, it consists of three fields &lt;code&gt;N&lt;/code&gt; (1 bit), &lt;code&gt;immr&lt;/code&gt; (6 bits) and &lt;code&gt;imms&lt;/code&gt; (6 bits).
+This format does not allow to encode 0 or ~0 (all ones) as an immediate.
+Although this sounds problematic at first, this isn&amp;rsquo;t actually a restriction: this format is only used for instructions such as bitwise &lt;code&gt;and&lt;/code&gt; and &lt;code&gt;orr&lt;/code&gt; where these constants are not really useful (e.g. &lt;code&gt;x0 | 0&lt;/code&gt; can be optimized to &lt;code&gt;x0&lt;/code&gt; while &lt;code&gt;x0 | ~0&lt;/code&gt; can be optimized to &lt;code&gt;~0&lt;/code&gt;).&lt;/p&gt;
+
+&lt;p&gt;The bit pattern of the immediate consists of identical sub-patterns with 2-, 4-, 8-, 16-, 32- or 64-bits length.
+Both the sub-pattern size and value is stored in the &lt;code&gt;N&lt;/code&gt; and &lt;code&gt;imms&lt;/code&gt; fields.
+The bit pattern needs to be a consecutive sequence of (at least one) zeroes, followed by a consecutive sequence of (at least one) ones (the regex for that pattern would be &lt;code&gt;0+1+&lt;/code&gt;).
+To generate the bit pattern, the format really just stores the number of consecutive ones in the element and the size of the element.&lt;/p&gt;
+
+&lt;p&gt;The so specified element value can be right-rotated up to element size minus 1 to move the start of the sequence of ones to any other point in the element.
+The number of rotations is stored in &lt;code&gt;immr&lt;/code&gt; which has 6 bits, so it allows up to 63 rotations in the case of an element size of 64 bits.
+An element size of 2 only allows 0 or 1 rotations, in this case only the least significant bit is considered, the upper 5 bits of &lt;code&gt;immr&lt;/code&gt; are simply ignored.&lt;/p&gt;
+
+&lt;p&gt;The element gets replicated until it reaches 32- or 64-bits.
+13-bits could store 8192 different values, but since e.g. the rotation is not always used to its full potential with smaller element sizes it actually allows less different values but probably a more useful set of bit patterns.&lt;/p&gt;
+
+&lt;p&gt;Since &lt;code&gt;immr&lt;/code&gt; is actually quite boring (just stores the number of rotations), let&amp;rsquo;s look into how &lt;code&gt;N&lt;/code&gt; and &lt;code&gt;imms&lt;/code&gt; can store both the element size and the number of consecutive ones at the same time:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;td&gt;N&lt;/td&gt;
+    &lt;td colspan=&#34;6&#34;&gt;imms&lt;/td&gt;
+    &lt;td&gt;element size&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;2 bits&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;4 bits&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;8 bits&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;16 bits&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;32 bits&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;x&lt;/td&gt;
+    &lt;td&gt;64 bits&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p&gt;The upper bits specify the element size, while the lower bits marked with &lt;code&gt;x&lt;/code&gt; are used to store the consecutive sequence of ones.
+0 means there is one 1 in the bit pattern, 1 means there are two 1&amp;rsquo;s and so on.
+At the same time it is not allowed to set all &lt;code&gt;x&lt;/code&gt; to 1, since this would allow to create all ones
+(Remember: The format doesn&amp;rsquo;t allow 0 or all ones to be encoded).&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s see some examples:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;0|111100&lt;/code&gt; represents element &lt;code&gt;01&lt;/code&gt; (2 bits element size, one 1)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;0|110101&lt;/code&gt; represents element &lt;code&gt;00111111&lt;/code&gt; (8 bits element size, six 1&amp;rsquo;s)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;There was an interesting &lt;a href=&#34;http://stackoverflow.com/a/33265035/727454&#34;&gt;answer on Stack Overflow&lt;/a&gt; that enumerates all 5334 possible 64-bit immediates with this encoding.
+I ported this [code to Ruby]() and dumped the fields &lt;code&gt;n&lt;/code&gt;, &lt;code&gt;immr&lt;/code&gt; and &lt;code&gt;imms&lt;/code&gt; for all values.
+See here for the [full output]() of the script.
+I verified the output by comparing all values to the output of the AArch64 assembler.
+Scrolling over all values, element sizes, rotations etc. should give you a quick overview of what numbers can be encoded with this representation.&lt;/p&gt;
+
+&lt;p&gt;For some source code examples, see e.g. LLVM, which also handles &lt;a href=&#34;https://github.com/llvm-mirror/llvm/blob/master/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L213&#34;&gt;encoding&lt;/a&gt; and &lt;a href=&#34;https://github.com/llvm-mirror/llvm/blob/master/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L292&#34;&gt;decoding&lt;/a&gt; of logical immediates.&lt;/p&gt;
+
+&lt;h1 id=&#34;other-immediates&#34;&gt;Other immediates&lt;/h1&gt;
+
+&lt;p&gt;There are even more instruction classes that accept immediates as operands
+(There is even one with floating-point).
+But IMHO they are not as complicated as the logical immediate class.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Dora: Implementing a JIT-compiler with Rust</title>
