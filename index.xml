@@ -33,7 +33,7 @@ The function is traversed twice, first to generate information (mostly about the
 The purpose of the baseline compiler in Dora is to generate code as fast as possible, not to generate the most efficient code.
 The sooner it finishes code generation, the sooner execution can start.&lt;/p&gt;
 
-&lt;p&gt;Many VMs like the OpenJDK or V8 pair the baseline compiler (or interpreter) with one or more optimizing compilers that compile functions to more efficient machine-code if it detects a function to be hot.
+&lt;p&gt;Many VMs like the OpenJDK or V8 pair the baseline compiler (and/or interpreter) with one or more optimizing compilers that compile functions to more efficient machine-code if it detects a function to be hot.
 The optimizing compiler needs longer to compile a given function, but generates more optimized machine-code.
 This is acceptable since not all code gets compiled by the optimizing compiler but only hot code/functions.
 Dora doesn&amp;rsquo;t have an optimizing compiler at the moment, but I have plans to implement one.&lt;/p&gt;
@@ -91,7 +91,7 @@ Dora is still missing a lot, I planned to add more but writing a JIT is more tha
 Instead of adding more syntactic sugar, I preferred to implement features that are more interesting to implement in the JIT.&lt;/p&gt;
 
 &lt;p&gt;Nevertheless Dora alredy has quite a large number of features.
-This are the supported primtive types: &lt;code&gt;bool&lt;/code&gt;, &lt;code&gt;byte&lt;/code&gt;, &lt;code&gt;char&lt;/code&gt;, &lt;code&gt;int&lt;/code&gt;, &lt;code&gt;long&lt;/code&gt;, &lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;.
+This are the supported primitive types: &lt;code&gt;bool&lt;/code&gt;, &lt;code&gt;byte&lt;/code&gt;, &lt;code&gt;char&lt;/code&gt;, &lt;code&gt;int&lt;/code&gt;, &lt;code&gt;long&lt;/code&gt;, &lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;.
 It is also possible to define your own classes (with inheritance) just like Java/Kotlin/etc.&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;class Point(let x: int, let y: int)
@@ -115,7 +115,7 @@ All I wanted was a simple, staticaly typed language which I could easily generat
 
 &lt;p&gt;Instead of using an already existing language, I could&amp;rsquo;ve also used an intermediate representation or bytecode like WASM or Java Bytecode.
 This would&amp;rsquo;ve meant that I could get a lot of benchmarks for my JIT and I could easily compare results to other VMs.
-To be honest today this sounds a lot more feasible than it was back then.
+To be honest, today this sounds a lot more feasible than it was back then.
 There are so many features you need to implement to run any non-trivial benchmark, I didn&amp;rsquo;t think it was feasible to run any non-trivial program.
 A big obstacle in writing complex benchmarks for Dora is the missing standard library: This could&amp;rsquo;ve been solved by using e.g. Classpath or OpenJDK.
 So this might have been easier, but still it was certainly also interesting to &amp;ldquo;design&amp;rdquo; a programming language.
