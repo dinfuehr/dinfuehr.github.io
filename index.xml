@@ -284,10 +284,16 @@ All you need to do is to &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/m
 &lt;p&gt;Dora just needs to emit such lines for every jitted function.&lt;/p&gt;
 
 &lt;p&gt;What can we conclude from this performance analysis?
-According to the measurements, mutex locking &amp;amp; unlocking takes a large part of the runtime.
+According to the measurements, mutex locking &amp;amp; unlocking takes a large part of the runtime (~25%).
 Right now, allocation happens in a mutex (even though Dora is still single-threaded).
-I plan to get rid of this with my new generational collector.
+I plan to get rid of this with my new generational collector, this should give a nice speedup.
 But for now I will leave it as it is.&lt;/p&gt;
+
+&lt;p&gt;What also shows up in the profile are the functions &lt;code&gt;start_native_call&lt;/code&gt; and &lt;code&gt;finish_native_call&lt;/code&gt; (8-9% of the runtime).
+Those function are called before respectively after a native call.
+This is overhead we have for calling native functions from Dora.
+Performance can be improved by inlining the allocation directly into the generated code.
+I need working Thread-Local Allocation Buffers (TLABs) in my GC for that, Swiper should enable that optimization.&lt;/p&gt;
 
 &lt;h3 id=&#34;optimizing-compiler&#34;&gt;Optimizing Compiler&lt;/h3&gt;
 
