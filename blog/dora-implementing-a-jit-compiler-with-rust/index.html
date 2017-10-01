@@ -285,7 +285,7 @@ The GC point stores which local variables are initialized.
 Now there is enough information to collect all local variables from the stack.
 To be more precise Dora not only keeps track of local variables but also of temporary values, fortunately temporary values can just be treated like local variables.</p>
 
-<p>My first implementation of the GC was a <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Na.C3.AFve_mark-and-sweep">Mark &amp; Sweep</a> collector which simply used <code>malloc</code> for object allocation and <code>free</code> for object deallocation.
+<p>My first implementation of the GC was a <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Na.C3.AFve_mark-and-sweep">Mark-and-Sweep</a> collector which simply used <code>malloc</code> for object allocation and <code>free</code> for object deallocation.
 The marking phase marked every object that was reachable. The sweeping phase afterwards invoked <code>free</code> for every object that wasn&rsquo;t marked.
 The problem with this implementation was to keep track of all allocated objects: the whole heap was a single linked-list.
 Each object had an additional word to store the pointer to the next object.
@@ -310,8 +310,9 @@ These disadvantages also explain why a copy collector is quite common in the you
 For one the young generation is only a (small?) part of the heap, so not that much memory is unusable.
 Furthermore if a program fulfills the generational hypothesis (that means most objects die young), copying should also be quite cheap.</p>
 
-<p>For me there was another property of copy collectors that was really important: it is moving objects to other memory locations.
+<p>For me there was another property of copy collectors that was really important: moving objects.
 Since the address of an object can change I need to update global variables and local variables in the root set to point to the new address of the object while collecting garbage.
+My initial Mark-and-Sweep-GC didn&rsquo;t move any object.
 This gave me more confidence that my root set was actually correct and updating references was working.</p>
 
 <p>I added a flag <code>--gc-stress</code> which forces a collection at every single allocation.
