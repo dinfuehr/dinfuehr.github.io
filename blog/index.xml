@@ -6,8 +6,324 @@
     <description>Recent content in Blogs on Dominik&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 20 Apr 2017 20:33:37 +0200</lastBuildDate>
+    <lastBuildDate>Tue, 12 Sep 2017 08:34:34 +0100</lastBuildDate>
     <atom:link href="https://dinfuehr.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Dora: Implementing a JIT-compiler with Rust</title>
+      <link>https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/</link>
+      <pubDate>Tue, 12 Sep 2017 08:34:34 +0100</pubDate>
+      
+      <guid>https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/</guid>
+      <description>
+
+&lt;p&gt;I am writing &lt;a href=&#34;https://github.com/dinfuehr/dora&#34;&gt;Dora&lt;/a&gt;, a simple &lt;a href=&#34;https://en.wikipedia.org/wiki/Just-in-time_compilation&#34;&gt;JIT-compiler&lt;/a&gt; with Rust.
+Dora is both the name of the custom programming language and of the JIT-compiler.
+After some time working on it, I want to write about the experiences I made.
+I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.&lt;/p&gt;
+
+&lt;h3 id=&#34;architecture&#34;&gt;Architecture&lt;/h3&gt;
+
+&lt;p&gt;The architecture is pretty simple: &lt;code&gt;dora hello.dora&lt;/code&gt; parses the given input file into an &lt;a href=&#34;https://en.wikipedia.org/wiki/Abstract_syntax_tree&#34;&gt;Abstract Syntax Tree (AST)&lt;/a&gt;. After parsing, the whole AST is semantically checked, if this succeeds execution starts with the &lt;code&gt;main&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;p&gt;To execute &lt;code&gt;main&lt;/code&gt;, machine-code is generated for that function by the baseline compiler by &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/src/baseline/codegen.rs&#34;&gt;traversing&lt;/a&gt; the AST nodes of the function.
+The function is traversed twice, first to generate information (mostly about the stack frame), the second traversal then generates the machine code.&lt;/p&gt;
+
+&lt;p&gt;The baseline compiler is a method-based compiler and not a &lt;a href=&#34;https://en.wikipedia.org/wiki/Tracing_just-in-time_compilation&#34;&gt;tracing JIT&lt;/a&gt; like for example &lt;a href=&#34;http://luajit.org/&#34;&gt;LuaJIT&lt;/a&gt;.
+The purpose of the baseline compiler in Dora is to generate code as fast as possible, not to generate the most efficient code.
+The sooner it finishes code generation, the sooner execution can start.&lt;/p&gt;
+
+&lt;p&gt;Many VMs like the OpenJDK or V8 pair the baseline compiler (or interpreter) with one or more optimizing compilers that compile functions to more efficient machine-code if it detects a function to be hot.
+The optimizing compiler needs longer to compile a given function, but generates more optimized machine-code.
+This is acceptable since not all code gets compiled by the optimizing compiler but only hot code/functions.
+Dora doesn&amp;rsquo;t have an optimizing compiler at the moment, but I have plans to implement one.&lt;/p&gt;
+
+&lt;h3 id=&#34;compilation&#34;&gt;Compilation&lt;/h3&gt;
+
+&lt;p&gt;The baseline compiler uses a &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/masm/mod.rs#L30&#34;&gt;MacroAssembler&lt;/a&gt; to generate machine code.
+All differences between different Instruction Set Architectures (ISAs) are handled by the MacroAssembler.
+Dora can generate machine-code for x86_64 and  AArch64.
+Adding other ISAs should be possible without touching the baseline compiler.&lt;/p&gt;
+
+&lt;p&gt;Implementing the second ISA certainly helped making the architecture cleaner and even unveiled bugs I didn&amp;rsquo;t notice on x86_64.
+It was also pretty interesting to implement instruction encoding, both for &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/x64/asm.rs&#34;&gt;x86_64&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/arm64/asm.rs&#34;&gt;AArch64&lt;/a&gt;.
+I didn&amp;rsquo;t implement instruction decoding myself, for this purpose I used the &lt;a href=&#34;http://www.capstone-engine.org/&#34;&gt;capstone&lt;/a&gt; library.
+The generated machine-code can be emitted with &lt;code&gt;dora --emit-asm=all hello-world.dora&lt;/code&gt;.
+A nice feature of the MacroAssembler is that comments can be added to the generated instructions.
+When disassembling the comments are printed along the disassembled machine instructions:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;fn main() 0x7f33bab6d010
+  0x7f33bab6d010: pushq		%rbp
+  0x7f33bab6d011: movq		%rsp, %rbp
+  0x7f33bab6d014: subq		$0x10, %rsp
+		  ; prolog end
+
+
+		  ; load string
+  0x7f33bab6d018: movq		-0x17(%rip), %rax
+  0x7f33bab6d01f: movq		%rax, -8(%rbp)
+  0x7f33bab6d023: movq		-8(%rbp), %rdi
+		  ; call direct println(Str)
+  0x7f33bab6d027: movq		-0x2e(%rip), %rax
+  0x7f33bab6d02e: callq		*%rax
+
+		  ; epilog
+  0x7f33bab6d030: addq		$0x10, %rsp
+  0x7f33bab6d034: popq		%rbp
+  0x7f33bab6d035: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;There already exists a &lt;a href=&#34;https://github.com/ebfe/rust-capstone&#34;&gt;Rust wrapper&lt;/a&gt; for the capstone libary.
+Although the README states that the bindings are incomplete, the wrapper supported all the features I need.&lt;/p&gt;
+
+&lt;h3 id=&#34;the-dora-programming-language&#34;&gt;The Dora programming language&lt;/h3&gt;
+
+&lt;p&gt;Here is a simple Hello world program:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;fun main() {
+    println(&amp;quot;Hello World&amp;quot;);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Dora is a custom-language with similarities to languages like Java, Kotlin and Rust (for Rust it is only syntactical).
+Most important: Dora is statically-typed and garbage collected.
+Dora is still missing a lot, I planned to add more but writing a JIT is more than enough work.
+Instead of adding more syntactic sugar, I preferred to implement features that are more interesting to implement in the JIT.&lt;/p&gt;
+
+&lt;p&gt;Nevertheless Dora alredy has quite a large number of features.
+This are the supported primtive types: &lt;code&gt;bool&lt;/code&gt;, &lt;code&gt;byte&lt;/code&gt;, &lt;code&gt;char&lt;/code&gt;, &lt;code&gt;int&lt;/code&gt;, &lt;code&gt;long&lt;/code&gt;, &lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;.
+It is also possible to define your own classes (with inheritance) just like Java/Kotlin/etc.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;class Point(let x: int, let y: int)
+
+// generic classes are supported too
+class Wrapper&amp;lt;T&amp;gt;(let obj: T)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Dora also supports variable-sized objects like Arrays with the &lt;code&gt;Array&amp;lt;T&amp;gt;&lt;/code&gt; class and Strings with &lt;code&gt;Str&lt;/code&gt;.
+These object types need to be treated differently both when allocating and collecting compared to fixed-size objects/classes like &lt;code&gt;Point&lt;/code&gt; in the example above (their size depends on the &lt;code&gt;length&lt;/code&gt;-field).&lt;/p&gt;
+
+&lt;p&gt;What&amp;rsquo;s also important to note for generic classes: Unlike Java, generic types can also be primitive types.
+So &lt;code&gt;Wrapper&amp;lt;int&amp;gt;&lt;/code&gt; and &lt;code&gt;Wrapper&amp;lt;bool&amp;gt;&lt;/code&gt; are both valid and are internally represented as two different classes.&lt;/p&gt;
+
+&lt;p&gt;Since a few a weeks Dora also supports generic trait boundaries, such that designing a fast generic hashing key-value mapping implementation should be possible.
+I didn&amp;rsquo;t yet write a generic &lt;code&gt;HashMap&lt;/code&gt; but you can look into the implementation of &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/tests/whiteboard/simple-map.dora&#34;&gt;&lt;code&gt;SlowMap&lt;/code&gt;&lt;/a&gt; in the testsuite which should show that this should be feasibles.&lt;/p&gt;
+
+&lt;p&gt;But why didn&amp;rsquo;t I use an already existing language?
+The main reason: I didn&amp;rsquo;t intend to implement that many features into the language.
+All I wanted was a simple, staticaly typed language which I could easily generate machine code for.&lt;/p&gt;
+
+&lt;p&gt;Instead of using an already existing language, I could&amp;rsquo;ve also used an intermediate representation or bytecode like WASM or Java Bytecode.
+This would&amp;rsquo;ve meant that I could get a lot of benchmarks for my JIT and I could easily compare results to other VMs.
+To be honest today this sounds a lot more feasible than it was back then.
+There are so many features you need to implement to run any non-trivial benchmark, I didn&amp;rsquo;t think it was feasible to run any non-trivial program.
+A big obstacle in writing complex benchmarks for Dora is the missing standard library: This could&amp;rsquo;ve been solved by using e.g. Classpath or OpenJDK.
+So this might have been easier, but still it was certainly also interesting to &amp;ldquo;design&amp;rdquo; a programming language.
+If I think about it, WASM is probably not ideal right now since I also wanted to look into garbage collection.&lt;/p&gt;
+
+&lt;p&gt;Another feature Dora supports are Exceptions.
+Exceptions can be thrown with &lt;code&gt;throw&lt;/code&gt;, while &lt;code&gt;do&lt;/code&gt;, &lt;code&gt;catch&lt;/code&gt; and &lt;code&gt;finally&lt;/code&gt; are used to catch exceptions.
+Doras exception handling is similar to &lt;a href=&#34;https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html&#34;&gt;Swift&lt;/a&gt;, all functions that can throw exceptions need to be marked with &lt;code&gt;throws&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;fun foo() throws { /* ... */ }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Functions that can throw need to be invoked like &lt;code&gt;try foo()&lt;/code&gt; or &lt;code&gt;try obj.bar()&lt;/code&gt;, where &lt;code&gt;try&lt;/code&gt; is just syntactic sugar that signals a potentially throwing invocation.
+I like this syntax because it makes it obvious in the caller that an exception could occur.&lt;/p&gt;
+
+&lt;p&gt;For runtime errors like failed assertions, the program is halted and the current stack trace is printed.
+Although exceptions and stack traces sound quite unspectacular, I was quite happy when this worked for the first time.&lt;/p&gt;
+
+&lt;p&gt;Dora also supports inheritance for classes.
+It has &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/pctor1.dora&#34;&gt;primary&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/ctor3.dora&#34;&gt;secondary&lt;/a&gt; constructors like &lt;a href=&#34;https://kotlinlang.org/docs/reference/classes.html&#34;&gt;Kotlin&lt;/a&gt;.
+The keyword &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/is1.dora&#34;&gt;&lt;code&gt;is&lt;/code&gt;&lt;/a&gt; is similar to Javas &lt;code&gt;instanceof&lt;/code&gt;, while &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/tests/as1.dora&#34;&gt;&lt;code&gt;as&lt;/code&gt;&lt;/a&gt; is used for the checked cast (in Java you would write &lt;code&gt;(SomeClass) obj&lt;/code&gt; for that).
+I implemented this check as described in this great &lt;a href=&#34;https://www.researchgate.net/publication/221552851_Fast_subtype_checking_in_the_HotSpot_JVM&#34;&gt;paper&lt;/a&gt; from Cliff Click and John Rose.
+Unfortunately I haven&amp;rsquo;t benchmarked my implementation of the &lt;em&gt;fast subtype check&lt;/em&gt; yet.
+My implementation is a bit easier since Dora doesn&amp;rsquo;t have interfaces or dynamically loaded classes.&lt;/p&gt;
+
+&lt;h3 id=&#34;garbage-collection&#34;&gt;Garbage Collection&lt;/h3&gt;
+
+&lt;p&gt;Dora has an exact, tracing &lt;a href=&#34;https://en.wikipedia.org/wiki/Tracing_garbage_collection&#34;&gt;Garbage Collector&lt;/a&gt;.
+For an tracing GC to work, it is essential to determine the root set.
+The root set is the initial set of objects for object graph traversal.
+The set usually consists of global variables and/or local variables.&lt;/p&gt;
+
+&lt;p&gt;While it is quite easy to add global variables to the root set, this is much harder for local variables.
+For this we need working stack unwinding, Dora needs to examine the active functions on the stack.
+Although we then know all local variables in these functions, there is one more complication:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-dora&#34;&gt;fun foo() {
+    let x = A(); // create object of class A
+    bar1(); // GC Point 1
+
+    let y = A(); // create another object of class A
+    bar2(); // GC Point 2
+
+    // use x and y
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For determining local variables we also need to know where in a function we currently are.
+The Dora function &lt;code&gt;foo&lt;/code&gt; has two local variables, but when invoking &lt;code&gt;bar1&lt;/code&gt; only &lt;code&gt;x&lt;/code&gt; is initialized.
+At this point there is already space reservered for &lt;code&gt;y&lt;/code&gt; but the memory is still uninitialized and contains some random value.
+&lt;code&gt;y&lt;/code&gt; shouldn&amp;rsquo;t be part of the root set at that point.
+When invoking &lt;code&gt;bar2&lt;/code&gt; both &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;y&lt;/code&gt; are initialized and therefore both belong to the root set.&lt;/p&gt;
+
+&lt;p&gt;The baseline compiler keeps track of initialized local variables and emits so called GC points for each function invocation.
+The GC point stores which local variables are initialized.
+Now there is enough information to collect all local variables from the stack.
+To be more precise Dora not only keeps track of local variables but also of temporary values, fortunately temporary values can just be treated like local variables.&lt;/p&gt;
+
+&lt;p&gt;My first implementation of the GC was a &lt;a href=&#34;https://en.wikipedia.org/wiki/Tracing_garbage_collection#Na.C3.AFve_mark-and-sweep&#34;&gt;Mark &amp;amp; Sweep&lt;/a&gt; collector which simply used &lt;code&gt;malloc&lt;/code&gt; for object allocation and &lt;code&gt;free&lt;/code&gt; for object deallocation.
+The marking phase marked every object that was reachable. The sweeping phase afterwards invoked &lt;code&gt;free&lt;/code&gt; for every object that wasn&amp;rsquo;t marked.
+The problem with this implementation was to keep track of all allocated objects: the whole heap was a single linked-list.
+Each object had an additional word to store the pointer to the next object.
+This increased object sizes but also made traversing the heap quite cache-inefficient.
+&lt;code&gt;malloc&lt;/code&gt; &amp;amp; &lt;code&gt;free&lt;/code&gt; are also quite expensive.
+I don&amp;rsquo;t want to say they are slow, they are not.
+But within a managed heap we can do better.&lt;/p&gt;
+
+&lt;p&gt;That&amp;rsquo;s why I wrote a simple &lt;a href=&#34;https://en.wikipedia.org/wiki/Tracing_garbage_collection#Copying_vs._mark-and-sweep_vs._mark-and-don.27t-sweep&#34;&gt;Copy Collector&lt;/a&gt; using the &lt;a href=&#34;https://en.wikipedia.org/wiki/Cheney%27s_algorithm&#34;&gt;Cheney-Algorithm&lt;/a&gt;.
+A copy collector divides a heap into two equally-sized spaces: the &lt;em&gt;from&lt;/em&gt; and &lt;em&gt;to&lt;/em&gt; space.
+Objects are always allocated in the &lt;em&gt;from&lt;/em&gt; space, by increasing a pointer that points to the next free memory by the object size.
+As soon as this pointer reaches the end of the space, all surviving objects are copied from the &lt;em&gt;from&lt;/em&gt; space to the &lt;em&gt;to&lt;/em&gt; space.
+All live objects are now in the &lt;em&gt;to&lt;/em&gt; space, the &lt;em&gt;from&lt;/em&gt; space now only contains garbage.
+The spaces then switch roles.
+Deallocation of unreachable/dead objects is a no-op.&lt;/p&gt;
+
+&lt;p&gt;I liked that I could implement this collector in less than 200 lines of code and it is also quite performant for the amount of work that went into it.
+The &lt;a href=&#34;http://gchandbook.org/&#34;&gt;GC Handbook&lt;/a&gt; recommends this algorithm if your goal is just to have a simple and working GC with good performance.
+The obvious disadvantage of this collector type is that 50% of the heap are always unusable.
+Copying live objects can be quite expensive too if a lot of objects survive, that also means potentially long pause times.
+These disadvantages also explain why a copy collector is quite common in the young generation of many garbage collectors.
+For one the young generation is only a (small?) part of the heap, so not that much memory is unusable.
+Furthermore if a program fulfills the generational hypothesis (that means most objects die young), copying should also be quite cheap.&lt;/p&gt;
+
+&lt;p&gt;For me there was another property of copy collectors that was really important: it is moving objects to other memory locations.
+Since the address of an object can change I need to update global variables and local variables in the root set to point to the new address of the object while collecting garbage.
+This gave me more confidence that my root set was actually correct and updating references was working.&lt;/p&gt;
+
+&lt;p&gt;I added a flag &lt;code&gt;--gc-stress&lt;/code&gt; which forces a collection at every single allocation.
+This is horribly inefficient but was invaluable for testing my implementation.
+You might also force a garbage collection by invoking &lt;code&gt;forceCollect()&lt;/code&gt; from Dora.&lt;/p&gt;
+
+&lt;p&gt;Another interesting problem for the GC are references into the heap from native code.
+Imagine a native function like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-rust&#34;&gt;fn some_native_function() {
+  let obj1: *const Obj = gc.allocate_object();
+  let obj2: *const Obj = gc.allocate_object();
+
+  // do something with obj1 and obj2
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The second object allocation might cause a garbage collection.
+If this is the case the first object is not part of the root set since only a local variable in native code references this object.
+Dora doesn&amp;rsquo;t have any knowledge about stack frames and local variables of native Rust code and will never have.
+The object wouldn&amp;rsquo;t survive the collection, but even if it would, &lt;code&gt;obj&lt;/code&gt; would point to the wrong address (the copy collector moves all surviving objects).
+Somehow we need to add this object to the root set.
+To solve this I added a data structure &lt;code&gt;HandleMemory&lt;/code&gt; and a type &lt;code&gt;Rooted&amp;lt;T&amp;gt;&lt;/code&gt; that stores an indirect pointer to an object.
+The native function from above now looks like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-rust&#34;&gt;fn some_native_function() {
+  let obj1: Rooted&amp;lt;Obj&amp;gt; = root(gc.allocate_object());
+  let obj2: Rooted&amp;lt;Obj&amp;gt; = root(gc.allocate_object());
+
+  // do something with obj1 and obj2
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;HandleMemory&lt;/code&gt; is used to store &lt;em&gt;direct&lt;/em&gt; pointers into the heap, all entries are automatically part of the root set.
+&lt;code&gt;Rooted&amp;lt;Obj&amp;gt;&lt;/code&gt; is a pointer to an entry in the handle memory and therefore an &lt;em&gt;indirect&lt;/em&gt; pointer.
+The function &lt;code&gt;root&lt;/code&gt; stores the &lt;em&gt;direct&lt;/em&gt; pointer it gets from the object allocation in &lt;code&gt;HandleMemory&lt;/code&gt; and returns an indirect pointer for this entry.
+This solves heap references from local variables in native code into the heap.
+&lt;code&gt;HandleMemory&lt;/code&gt; is cleaned up when the native code returns to Dora code.
+This makes it invalid to retain these indirect pointers by storing it in some global variable.
+If I should need have a need for this later, I would need to add some kind of &lt;em&gt;global references&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Actually the whole integration between the GC or JIT and native code is quite interesting.
+Right now I am working again to improve the GC.
+My first goal here is to write a generational GC called &lt;em&gt;Swiper&lt;/em&gt;.
+This should make GC pauses way shorter than with the current Copy GC.
+I also have other improvements in mind: incremental marking, Thread-Local Allocation Buffer, etc.&lt;/p&gt;
+
+&lt;h3 id=&#34;benchmarks&#34;&gt;Benchmarks&lt;/h3&gt;
+
+&lt;p&gt;I can&amp;rsquo;t stop writing this blog without showing some benchmark results.
+There are at least two microbenchmarks Dora is able to run right now from the &lt;a href=&#34;http://benchmarksgame.alioth.debian.org/&#34;&gt;Language Benchmarks Game&lt;/a&gt;: &lt;a href=&#34;https://github.com/dinfuehr/dora/tree/master/bench/fannkuchredux&#34;&gt;fannkuch-redux&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/tree/master/bench/binarytrees&#34;&gt;binarytrees&lt;/a&gt;.
+I chose the fastest single-threaded Java implementation (dora does not support multi-threading yet) of these benchmarks and translated them to Dora.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://dinfuehr.github.io/images/dora-bench-game.png&#34; alt=&#34;Benchmark results&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For &lt;code&gt;fannkuch-redux&lt;/code&gt; Dora is about 4.7 times (47s to 224s) slower than the Java equivalent running on OpenJDK (version 1.8.0_144), the benchmark results for &lt;code&gt;binarytrees&lt;/code&gt; are worse: Dora is 7.2x slower (36s instead of 5s).
+This is easily explained: &lt;code&gt;binarytrees&lt;/code&gt; stresses the GC and the current implementation isn&amp;rsquo;t really the most efficient.
+We will later look into this benchmark in more detail.&lt;/p&gt;
+
+&lt;p&gt;Nevertheless I am satisfied with these numbers.
+Neither did I cheat nor am I expecting these numbers to get significantly worse when adding more features.&lt;/p&gt;
+
+&lt;p&gt;It should be clear but just to make sure: Please don&amp;rsquo;t draw any conclusions on Rusts performance from these benchmarks.
+All time is spent in the generated machine-code, the code generator for Dora is at fault not Rust.&lt;/p&gt;
+
+&lt;h3 id=&#34;dora-with-perf&#34;&gt;Dora with perf&lt;/h3&gt;
+
+&lt;p&gt;We can look deeper into the &lt;code&gt;binarytrees&lt;/code&gt; benchmark and run the program with &lt;a href=&#34;https://perf.wiki.kernel.org/index.php/Main_Page&#34;&gt;perf&lt;/a&gt;.
+perf can record stacktraces using sampling.
+Thanks to &lt;a href=&#34;http://www.brendangregg.com/&#34;&gt;Brendan Gregg&lt;/a&gt; we can create &lt;a href=&#34;https://github.com/brendangregg/FlameGraph&#34;&gt;flame graphs&lt;/a&gt; as interactive SVGs from the collected stacktraces, which is pretty cool:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://dinfuehr.github.io/images/perf-binarytrees.svg&#34;&gt;&lt;img src=&#34;https://dinfuehr.github.io/images/perf-binarytrees.svg&#34; alt=&#34;binarytrees flame graph&#34;&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;What&amp;rsquo;s also pretty nice is that perf shows both user and kernel stack traces.
+&lt;code&gt;perf&lt;/code&gt; even emits the function names for the jitted functions, which was actually pretty easy to achieve.
+All you need to do is to &lt;a href=&#34;https://github.com/dinfuehr/dora/blob/master/src/os/perf.rs&#34;&gt;create&lt;/a&gt; a file &lt;code&gt;/tmp/perf-&amp;lt;pid&amp;gt;.map&lt;/code&gt; that consists of lines with this format:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;lt;code address start&amp;gt; &amp;lt;length&amp;gt; &amp;lt;function name&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Dora just needs to emit such lines for every jitted function.&lt;/p&gt;
+
+&lt;p&gt;What can we conclude from this performance analysis?
+According to the measurements, mutex locking &amp;amp; unlocking takes a large part of the runtime.
+Right now, allocation happens in a mutex (even though Dora is still single-threaded).
+I plan to get rid of this with my new generational collector.
+But for now I will leave it as it is.&lt;/p&gt;
+
+&lt;h3 id=&#34;optimizing-compiler&#34;&gt;Optimizing Compiler&lt;/h3&gt;
+
+&lt;p&gt;Another feature I want to implement is an optimizing compiler for Dora.
+This would probably improve almost every benchmark.
+I think that Dora is already expressive enough to write the optimizing compiler in Dora instead of Rust.
+This could also be a great test case for Dora.
+The baseline compiler emits machine code from the AST, which are quite a lot of different Rust data structures.
+I suppose it would be quite cumbersome to pass the Rust AST to Dora.
+Therefore I would first emit byte code in Rust, and then simply pass the byte code array to Dora.
+This should be way easier.
+I would then have a &lt;a href=&#34;http://darksi.de/d.sea-of-nodes/&#34;&gt;&amp;ldquo;sea of nodes&amp;rdquo;&lt;/a&gt; IR in Dora on which I could do all my optimizations.
+That said this is probably going to take some time.
+Nevertheless I am already looking forward to implement it.&lt;/p&gt;
+
+&lt;h3 id=&#34;using-rust&#34;&gt;Using Rust&lt;/h3&gt;
+
+&lt;p&gt;A few words on using Rust: I started the project to try out Rust on a non-trivial project.
+I knew some Rust but hadn&amp;rsquo;t used it on a project before.
+Both &lt;code&gt;cargo&lt;/code&gt; and &lt;code&gt;rustup&lt;/code&gt; are great tools.
+They also work on my Odroid C2 where I implemented the support for AArch64.
+Cross-compiling became pretty easy, although I just used it for making sure Dora still builds on AArch64
+(I never bothered to try to get it to link).
+Cross-building is as simple as &lt;code&gt;cargo build --target=aarch64-unknown-linux-gnu&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;What was especially hard for me to get used to was exclusive mutability, not really borrowing or ownership.
+I am perfectly aware that this feature is the reason I don&amp;rsquo;t have to worry about iterator invalidation or data races in safe rust code but still it takes some time getting used to.
+The good thing about that though, it forces you to think about organizing your data structures more thoroughly.&lt;/p&gt;
+
+&lt;h3 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h3&gt;
+
+&lt;p&gt;Implementing both a programming language and JIT is a LOT of work.
+Nevertheless working on it was and still is both fun and educational and there will always be so much stuff that would be cool to implement or to improve.
+The source is on &lt;a href=&#34;https://github.com/dinfuehr/dora&#34;&gt;Github&lt;/a&gt;, contributions are welcome.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Encoding of immediate values on AArch64</title>
