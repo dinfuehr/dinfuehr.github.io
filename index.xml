@@ -86,9 +86,9 @@ Although the README states that the bindings are incomplete, the wrapper support
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;Dora is a custom-language with similarities to languages like Java, Kotlin and Rust (for Rust it is only syntactical).
-Most important: Dora is statically-typed and garbage collected.
+Most importantly: Dora is statically-typed and garbage collected.
 Dora is still missing a lot, I planned to add more but writing a JIT is more than enough work.
-Instead of adding more syntactic sugar, I preferred to implement features that are more interesting to implement in the JIT.&lt;/p&gt;
+Instead of adding more syntactic sugar, I preferred to implement features that were more interesting to implement in the JIT.&lt;/p&gt;
 
 &lt;p&gt;Nevertheless Dora alredy has quite a large number of features.
 This are the supported primitive types: &lt;code&gt;bool&lt;/code&gt;, &lt;code&gt;byte&lt;/code&gt;, &lt;code&gt;char&lt;/code&gt;, &lt;code&gt;int&lt;/code&gt;, &lt;code&gt;long&lt;/code&gt;, &lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;.
@@ -144,7 +144,7 @@ My implementation is a bit easier since Dora doesn&amp;rsquo;t have interfaces o
 &lt;h3 id=&#34;garbage-collection&#34;&gt;Garbage Collection&lt;/h3&gt;
 
 &lt;p&gt;Dora has an exact, tracing &lt;a href=&#34;https://en.wikipedia.org/wiki/Tracing_garbage_collection&#34;&gt;Garbage Collector&lt;/a&gt;.
-For an tracing GC to work, it is essential to determine the root set.
+For a tracing GC to work, it is essential to determine the root set.
 The root set is the initial set of objects for object graph traversal.
 The set usually consists of global variables and/or local variables.&lt;/p&gt;
 
@@ -200,7 +200,7 @@ For one the young generation is only a (small?) part of the heap, so not that mu
 Furthermore if a program fulfills the generational hypothesis (that means most objects die young), copying should also be quite cheap.&lt;/p&gt;
 
 &lt;p&gt;For me there was another property of copy collectors that was really important: moving objects.
-Since the address of an object can change I need to update global variables and local variables in the root set to point to the new address of the object while collecting garbage.
+Since the address of an object can change, global variables and local variables in the root set need to be updated to point to the new address of the object while collecting garbage.
 My initial Mark-and-Sweep-GC didn&amp;rsquo;t move any object.
 This gave me more confidence that my root set was actually correct and updating references was working.&lt;/p&gt;
 
@@ -241,7 +241,7 @@ The function &lt;code&gt;root&lt;/code&gt; stores the &lt;em&gt;direct&lt;/em&gt
 This solves heap references from local variables in native code into the heap.
 &lt;code&gt;HandleMemory&lt;/code&gt; is cleaned up when the native code returns to Dora code.
 This makes it invalid to retain these indirect pointers by storing it in some global variable.
-If I should need have a need for this later, I would need to add some kind of &lt;em&gt;global references&lt;/em&gt;.&lt;/p&gt;
+If I should have a need for this later, I would need to add some kind of &lt;em&gt;global references&lt;/em&gt;.&lt;/p&gt;
 
 &lt;p&gt;Actually the whole integration between the GC or JIT and native code is quite interesting.
 Right now I am working again to improve the GC.
@@ -251,7 +251,7 @@ I also have other improvements in mind: incremental marking, Thread-Local Alloca
 
 &lt;h3 id=&#34;benchmarks&#34;&gt;Benchmarks&lt;/h3&gt;
 
-&lt;p&gt;I can&amp;rsquo;t stop writing this blog without showing some benchmark results.
+&lt;p&gt;I can&amp;rsquo;t finish writing this blog without showing some benchmark results.
 There are at least two microbenchmarks Dora is able to run right now from the &lt;a href=&#34;http://benchmarksgame.alioth.debian.org/&#34;&gt;Language Benchmarks Game&lt;/a&gt;: &lt;a href=&#34;https://github.com/dinfuehr/dora/tree/master/bench/fannkuchredux&#34;&gt;fannkuch-redux&lt;/a&gt; and &lt;a href=&#34;https://github.com/dinfuehr/dora/tree/master/bench/binarytrees&#34;&gt;binarytrees&lt;/a&gt;.
 I chose the fastest single-threaded Java implementation (dora does not support multi-threading yet) of these benchmarks and translated them to Dora.&lt;/p&gt;
 
@@ -291,9 +291,10 @@ I plan to get rid of this with my new generational collector, this should give a
 But for now I will leave it as it is.&lt;/p&gt;
 
 &lt;p&gt;What also shows up in the profile are the functions &lt;code&gt;start_native_call&lt;/code&gt; and &lt;code&gt;finish_native_call&lt;/code&gt; (8-9% of the runtime).
-Those function are called before respectively after a native call.
-This is overhead we have for calling native functions from Dora.
-Performance can be improved by inlining the allocation directly into the generated code.
+Calling a native function is more expensive than calling a &lt;em&gt;normal&lt;/em&gt; Dora function.
+&lt;code&gt;start_native_call&lt;/code&gt; and &lt;code&gt;finish_native_call&lt;/code&gt; do the necessary setup- and cleanup-work for calling a native function.
+Object allocation is the only native function regularly invoked in this benchmark.
+By inlining the object allocation, we can get rid of the native function calling overhead.
 I need working Thread-Local Allocation Buffers (TLABs) in my GC for that, Swiper should enable that optimization.&lt;/p&gt;
 
 &lt;h3 id=&#34;optimizing-compiler&#34;&gt;Optimizing Compiler&lt;/h3&gt;
