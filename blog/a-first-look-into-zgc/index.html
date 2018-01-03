@@ -204,8 +204,8 @@ ZGC needs a read barrier but no write barrier.
 For concurrent compaction I haven&rsquo;t seen a solution without read barriers.</p>
 
 <p>Another factor to consider:
-Even if a GC needs barriers, they might &ldquo;only&rdquo; be required when reading or writing references in the heap.
-Reading or writing primitives like <code>int</code> or <code>double</code> might not require a barrier.</p>
+Even if a GC needs some type of barrier, they might &ldquo;only&rdquo; be required when reading or writing references in the heap.
+Reading or writing primitives like <code>int</code> or <code>double</code> might not require the barrier.</p>
 
 <h3 id="pointer-tagging">Pointer tagging</h3>
 
