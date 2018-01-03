@@ -22,15 +22,6 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
     </item>
     
     <item>
-      <title>A first look into ZGC</title>
-      <link>https://dinfuehr.github.io/blog/a-first-look-into-zgc/</link>
-      <pubDate>Thu, 20 Apr 2017 20:33:37 +0200</pubDate>
-      
-      <guid>https://dinfuehr.github.io/blog/a-first-look-into-zgc/</guid>
-      <description>ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&amp;rsquo;s C4 that focuses on reducing pause-times while still compacting the heap. Although I won&amp;rsquo;t give a full introduction here, &amp;ldquo;compacting the heap&amp;rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world.</description>
-    </item>
-    
-    <item>
       <title>Encoding of immediate values on AArch64</title>
       <link>https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/</link>
       <pubDate>Thu, 20 Apr 2017 20:33:37 +0200</pubDate>
