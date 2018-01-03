@@ -179,11 +179,11 @@ Depending on the size of the heap such a pause could take several seconds, which
 Why is this complicated?</p>
 
 <ul>
-<li>You need to copy an object to another memory address, at the same time another heap could read from or write into the old object.</li>
+<li>You need to copy an object to another memory address, at the same time another thread could read from or write into the old object.</li>
 <li>If copying succeeded there might still be arbitrary many references somewhere in the heap to the old object address that need to be updated to the new address.</li>
 </ul>
 
-<p>I should also mention that although concurrent compaction seems to be the best solution of the alternatives given above, there are definitely some tradeoffs involved.
+<p>I should also mention that although concurrent compaction seems to be the best solution to reduce pause time of the alternatives given above, there are definitely some tradeoffs involved.
 So if you don&rsquo;t care about pause times, you might be better off using a GC that focuses on throughput instead.</p>
 
 <h3 id="pointer-tagging">Pointer tagging</h3>
