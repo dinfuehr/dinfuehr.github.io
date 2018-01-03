@@ -9,10 +9,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <meta name="author" content="Dominik Inführ">
-<meta name="description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focus on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world.">
+<meta name="description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK. It was mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focus on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world.">
 
 <meta property="og:title" content="A first look into ZGC" />
-<meta property="og:description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focus on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world." />
+<meta property="og:description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK. It was mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focus on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://dinfuehr.github.io/blog/a-first-look-into-zgc/" />
 
@@ -157,10 +157,11 @@
             <div class="markdown">
                 
 
-<p><a href="http://cr.openjdk.java.net/~pliden/zgc/">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by <a href="https://twitter.com/perliden">Per Liden</a>.
+<p><a href="http://cr.openjdk.java.net/~pliden/zgc/">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
+It was mainly written by <a href="https://twitter.com/perliden">Per Liden</a>.
 ZGC is similar to <a href="https://wiki.openjdk.java.net/display/shenandoah/Main">Shenandoah</a> or Azul&rsquo;s C4 that focus on reducing pause-times while still <a href="https://en.wikipedia.org/wiki/Mark-compact_algorithm">compacting</a> the heap.
 Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap.
-This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as <em>stopping the world</em>.
+This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as <em>stopping the world</em>.
 Only when the GC is finished, the application can be resumed.
 In GC literature the application is often called <em>mutator</em>, since from the GC&rsquo;s point of view the application mutates the heap.
 Depending on the size of the heap such a pause could take several seconds, which could be quite problematic for interactive applications.</p>
@@ -175,7 +176,14 @@ Depending on the size of the heap such a pause could take several seconds, which
 </ul>
 
 <p>As already mentioned ZGC does concurrent compaction, this is certainly not a simple feature to implement so I want to describe how this works.
-I should also mention that although concurrent compaction seems to be the best solution of the alternatives given above, there are definitely some tradeoffs involved.
+Why is this complicated?</p>
+
+<ul>
+<li>You need to copy an object to another memory address, at the same time another heap could read from or write into the old object.</li>
+<li>If copying succeeded there might still be arbitrary many references somewhere in the heap to the old object address that need to be updated to the new address.</li>
+</ul>
+
+<p>I should also mention that although concurrent compaction seems to be the best solution of the alternatives given above, there are definitely some tradeoffs involved.
 So if you don&rsquo;t care about pause times, you might be better off using a GC that focuses on throughput instead.</p>
 
 <h3 id="pointer-tagging">Pointer tagging</h3>
@@ -282,7 +290,7 @@ ZGC allocates a forwarding table for each page in the relocation set.
 The forwarding table is basically a hash map that stores the address an object has been relocated to (if the object has already been relocated).</p>
 
 <p>The advantage with ZGC&rsquo;s approach is that we only need to allocate space for the forwarding pointer for pages in the relocation set.
-Shenandoah in comparison stores the forwarding pointer in the object itself for each and every object, which has a certain memory usage overhead.</p>
+Shenandoah in comparison stores the forwarding pointer in the object itself for each and every object, which has some memory overhead.</p>
 
 <p>The GC threads walk over the live objects in the relocation set and relocate all those objects that haven&rsquo;t been relocated yet.
 It could even happen that an application thread and a GC thread try to relocate the same object at the same time, in this case the first thread to relocate the object wins.
@@ -308,7 +316,7 @@ ZGC doesn&rsquo;t need store/write-barriers for <code>obj.field = someOtherObj</
 <p>Depending on the stage the GC is currently in (stored in the global variable <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l27">ZGlobalPhase</a>), the barrier either marks the object or relocates it if the reference isn&rsquo;t already marked or <em>remapped</em>.</p>
 
 <p>The global variables <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l33">ZAddressGoodMask</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l34">ZAddressBadMask</a> store the mask that determines if a reference is already considered good (that means already marked or remapped/relocated) or if there is still some action necessary.
-These variables are only changed at the start of marking- and relocation-phase and both at the same <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zAddress.cpp#l31">time</a>.
+These variables are only changed at the start of marking- and relocation-phase and both at the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zAddress.cpp#l31">same time</a>.
 This table from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.hpp#l99">source</a> gives a nice overview in which state these masks can be:</p>
 
 <pre><code>               GoodMask         BadMask          WeakGoodMask     WeakBadMask
