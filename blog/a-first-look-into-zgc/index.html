@@ -150,7 +150,7 @@
                     <div class="date" title='Wed Jan 3 2018 20:33:37 &#43;0200'>Jan 3, 2018</div>
                     
                     
-		    <div class="reading-time"><div class="middot"></div>10 minutes read</div>
+		    <div class="reading-time"><div class="middot"></div>12 minutes read</div>
                     
                 </div>
             </div>
@@ -185,6 +185,27 @@ Why is this complicated?</p>
 
 <p>I should also mention that although concurrent compaction seems to be the best solution to reduce pause time of the alternatives given above, there are definitely some tradeoffs involved.
 So if you don&rsquo;t care about pause times, you might be better off using a GC that focuses on throughput instead.</p>
+
+<h3 id="gc-barriers">GC barriers</h3>
+
+<p>The key to understanding how ZGC does concurrent compaction is the <em>load barrier</em> (often called <em>read barrier</em> in GC literature).
+Although I have an <a href="#load-barrier">own section</a> about ZGC&rsquo;s load-barrier, I want to give a short overview since not all readers might be familiar with them.
+If a GC has load-barriers, the GC needs to do some additional action when reading a reference from the heap.
+Basically in Java every time you see some code like <code>obj.field</code>.
+A GC could also need a <em>write/store-barrier</em> for operations like <code>obj.field = value</code>.
+Both operations are special since they read from or write into the heap.
+The names are a bit confusing, but GC barriers are different from <a href="https://en.wikipedia.org/wiki/Memory_barrier">memory barriers</a> for the CPU.</p>
+
+<p>Both reading and writing in the heap is extremely common, so both GC-barriers need to be super efficient.
+That means just a few assembly instructions in the common case.
+Read barriers are an order of magnitude more likely than write-barriers (although this can certainly vary depending on the application), so read-barriers are even more performance-sensitive.
+Generational GC&rsquo;s for example usually get by with just a write barrier, no read barrier needed.
+ZGC needs a read barrier but no write barrier.
+For concurrent compaction I haven&rsquo;t seen a solution without read barriers.</p>
+
+<p>Another factor to consider:
+Even if a GC needs barriers, they might &ldquo;only&rdquo; be required when reading or writing references in the heap.
+Reading or writing primitives like <code>int</code> or <code>double</code> might not require a barrier.</p>
 
 <h3 id="pointer-tagging">Pointer tagging</h3>
 
@@ -296,7 +317,11 @@ Shenandoah in comparison stores the forwarding pointer in the object itself for 
 It could even happen that an application thread and a GC thread try to relocate the same object at the same time, in this case the first thread to relocate the object wins.
 ZGC uses an atomic <a href="https://en.wikipedia.org/wiki/Compare-and-swap">CAS</a>-operation to determine a winner.</p>
 
-<p>The relocation phase is finished as soon as the GC threads have finished walking the relocation set.
+<p>While not marking the <a href="#load-barrier">load-barrier</a> relocates or remaps all references loaded from the heap.
+That ensure that every new reference the mutator sees, already points to the newest copy of an object.
+Remapping an object means looking up the new object address in the forwarding table.</p>
+
+<p>The relocation phase is finished as soon as the GC threads are finished walking the relocation set.
 Although that means all objects have been relocated, there will generally still be references into the relocation set, that need to be <em>remapped</em> to their new addresses.
 These reference will then be healed by trapping load-barriers or if this doesn&rsquo;t happen soon enough by the next marking cycle.
 That means marking also needs to inspect the forward table to <em>remap</em> (but not relocate - all objects are guaranteed to be relocated) objects to their new addresses.</p>
@@ -309,9 +334,9 @@ If the new marking phase would use the same marking bit, the load-barrier would 
 <h3 id="load-barrier">Load-Barrier</h3>
 
 <p>ZGC needs a so called load-barrier (also referred to as read-barrier) when reading a reference from the heap.
-We need to insert this load-barrier each time the Java-Code accesses a field of object type, e.g. <code>obj.field</code>.
-Accessing fields of some other primitive type doesn&rsquo;t need a barrier, e.g. <code>obj.anInt</code> or <code>obj.anDouble</code>.
-ZGC doesn&rsquo;t need store/write-barriers for <code>obj.field = someOtherObj</code>.</p>
+We need to insert this load-barrier each time the Java program accesses a field of object type, e.g. <code>obj.field</code>.
+Accessing fields of some other primitive type do not need a barrier, e.g. <code>obj.anInt</code> or <code>obj.anDouble</code>.
+ZGC doesn&rsquo;t need store/write-barriers for <code>obj.field = someValue</code>.</p>
 
 <p>Depending on the stage the GC is currently in (stored in the global variable <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l27">ZGlobalPhase</a>), the barrier either marks the object or relocates it if the reference isn&rsquo;t already marked or <em>remapped</em>.</p>
 
