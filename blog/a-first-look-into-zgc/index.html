@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="author" content="Dominik Inführ">
+<meta name="description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focuses on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world.">
+
+<meta property="og:title" content="A first look into ZGC" />
+<meta property="og:description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by Per Liden. ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focuses on reducing pause-times while still compacting the heap. Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://dinfuehr.github.io/blog/a-first-look-into-zgc/" />
+
+
+
+<meta property="article:published_time" content="2017-04-20T20:33:37&#43;02:00"/>
+
+<meta property="article:modified_time" content="2017-04-20T20:33:37&#43;02:00"/>
+
+
+
+
+
+
+
+
+
+
+
+
+<title>
+
+
+     A first look into ZGC 
+
+</title>
+<link rel="canonical" href="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Ubuntu+Mono:400,400i,700,700i|Raleway:500">
+
+
+
+    <link rel="stylesheet" href="/css/reset.css">
+    <link rel="stylesheet" href="/css/pygments.css">
+    <link rel="stylesheet" href="/css/main.css">
+    
+
+
+
+
+<link rel="shortcut icon"
+
+    href="/img/favicon.ico"
+
+>
+
+
+
+
+
+
+
+
+</head>
+
+
+<body lang="">
+
+<section class="header">
+    <div class="container">
+        <div class="content">
+            
+            <a href="/"><div class="name">Dominik Inführ</div></a>
+            
+            <nav>
+                <ul>
+                    
+                </ul>
+            </nav>
+        </div>
+    </div>
+</section>
+
+<section class="icons">
+    <div class="container">
+        <div class="content">
+        
+            <a href="//github.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/github.svg" alt="github" /></a>
+        
+
+        
+            <a href="//twitter.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
+        
+
+        
+
+        
+
+        
+
+        
+
+        
+            
+        
+
+        
+
+        
+            <a href="mailto:dominik.infuehr@gmail.com"><img class="icon" src="/img/email.svg" alt="email" /></a>
+        
+
+        
+
+        
+        </div>
+    </div>
+</section>
+
+
+<section class="main post non-narrow zero-top-spacing">
+    <div class="container">
+        <div class="content">
+            <div class="front-matter">
+                <div class="title-container">
+                    <div class="page-heading">
+
+    A first look into ZGC
+
+</div>
+
+                    <div class="initials"><a href="https://dinfuehr.github.io/"></a></div>
+                </div>
+                <div class="meta">
+                    
+                    <div class="date" title='Thu Apr 20 2017 20:33:37 CEST'>Apr 20, 2017</div>
+                    
+                    
+		    <div class="reading-time"><div class="middot"></div>10 minutes read</div>
+                    
+                </div>
+            </div>
+            <div class="markdown">
+                
+
+<p><a href="http://cr.openjdk.java.net/~pliden/zgc/">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK mainly written by <a href="https://twitter.com/perliden">Per Liden</a>.
+ZGC is similar to <a href="https://wiki.openjdk.java.net/display/shenandoah/Main">Shenandoah</a> or Azul&rsquo;s C4 that focuses on reducing pause-times while still <a href="https://en.wikipedia.org/wiki/Mark-compact_algorithm">compacting</a> the heap.
+Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap.
+This helps to reduce fragmentation but usually this also means that the whole application (that means all of its threads) needs to be halted while the GC does its magic, this is usually referred to as <em>stopping the world</em>.
+Only when the GC is finished, the application can be resumed.
+Depending on the size of the heap this pause could take several seconds, which could be quite problematic for interactive applications.</p>
+
+<p>There are several ways to reduce pause times:</p>
+
+<ul>
+<li>The GC can employ multiple threads while compacting (<em>parallel</em> compaction).</li>
+<li>Compaction work can also be split across multiple pauses (<em>incremental</em> compaction).</li>
+<li>Compact the heap concurrently to the running application without stopping it (or just for a short time) (<em>concurrent</em> compaction).</li>
+<li>Go&rsquo;s GC simply deals with it by not compacting the heap at all.</li>
+</ul>
+
+<p>As already mentioned ZGC does concurrent compaction, this is certainly not a simple feature to implement so I want to describe how this works.
+I should also mention that although concurrent compaction seems to be the best solution of the alternatives given above, there are definitely some tradeoffs involved.
+So if you don&rsquo;t care about pause times, you might be better off using a GC that focuses on throughput instead.</p>
+
+<h3 id="pointer-tagging">Pointer tagging</h3>
+
+<p>ZGC stores additional <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59">metadata</a> in heap references, on x64 a reference is 64-bit wide (ZGC doesn&rsquo;t support compressed oops or class pointers at the moment).
+48-bit of those 64-bit can actually be used for virtual memory addresses on x64.
+Although to be exact only 47-bit, since bit 47 determines the value of bits 48-63 (for our purpose those bits are all 0).
+ZGC reserves the first 42-bits for the actual address of the object (referenced to as <em>offset</em> in the source code).
+42-bit addresses give you a theoretical heap limitation of 4TB in ZGC.
+The remaining bits are used for these flags: <code>finalizable</code>, <code>remapped</code>, <code>marked1</code> and <code>marked0</code> (one bit is reserved for future use).
+There is a really nice ASCII drawing in ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59">source</a> that shows all these bits:</p>
+
+<pre><code> 6                 4 4 4  4 4                                             0
+ 3                 7 6 5  2 1                                             0
++-------------------+-+----+-----------------------------------------------+
+|00000000 00000000 0|0|1111|11 11111111 11111111 11111111 11111111 11111111|
++-------------------+-+----+-----------------------------------------------+
+|                   | |    |
+|                   | |    * 41-0 Object Offset (42-bits, 4TB address space)
+|                   | |
+|                   | * 45-42 Metadata Bits (4-bits)  0001 = Marked0
+|                   |                                 0010 = Marked1
+|                   |                                 0100 = Remapped
+|                   |                                 1000 = Finalizable
+|                   |
+|                   * 46-46 Unused (1-bit, always zero)
+|
+* 63-47 Fixed (17-bits, always zero)
+</code></pre>
+
+<p>Having metadata information in heap references does make dereferencing more expensive, since the address needs to be masked to get the <em>real</em> address (without metainformation) like in this pseudo code:</p>
+
+<pre><code class="language-c++">intptr_t real_address(intptr_t address) {
+    intptr_t mask = (1 &lt;&lt; 42) - 1;
+    intptr_t offset = address &amp; mask; // offset bits from address
+    
+    // we might also need to add the heap's start address
+    return heap_start + offset;
+}
+
+// read int field from heap object
+int32_t get_int_field(intptr_t object, intptr_t int_field_offset) {
+    return * (int32_t *) (object + int_field_offset);
+}
+
+// read int field from heap object with masking
+int32_t get_int_field(intptr_t object, intptr_t int_field_offset) {
+    return * (int32_t *) (real_address(object) + int_field_offset);
+}
+</code></pre>
+
+<p>ZGC employs a nice trick to avoid this: When reading from memory either the bit for <code>marked0</code>, <code>marked1</code> or <code>remapped</code> is set.
+When allocating a page at offset <code>x</code>, ZGC maps the same page to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l212">3 different address</a>:</p>
+
+<ol>
+<li>for <code>marked0</code>: <code>(0b0001 &lt;&lt; 42) | x</code></li>
+<li>for <code>marked1</code>: <code>(0b0010 &lt;&lt; 42) | x</code></li>
+<li>for <code>remapped</code>: <code>(0b0100 &lt;&lt; 42) | x</code></li>
+</ol>
+
+<p>ZGC therefore just reserves 16TB of address space (but not actually uses all of this memory) starting at address 4TB.
+Here is another nice drawing from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l39">source</a>:</p>
+
+<pre><code>  +--------------------------------+ 0x0000140000000000 (20TB)
+  |         Remapped View          |
+  +--------------------------------+ 0x0000100000000000 (16TB)
+  |     (Reserved, but unused)     |
+  +--------------------------------+ 0x00000c0000000000 (12TB)
+  |         Marked1 View           |
+  +--------------------------------+ 0x0000080000000000 (8TB)
+  |         Marked0 View           |
+  +--------------------------------+ 0x0000040000000000 (4TB)
+</code></pre>
+
+<p>At any point of time only one of these 3 views is in use.
+So for debugging the unused views can be <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l230">unmapped</a> to better verify correctness.</p>
+
+<h3 id="pages-physical-virtual-memory">Pages &amp; Physical &amp; Virtual Memory</h3>
+
+<p>Shenandoah separates the heap into a large number of equally-sized <em>regions</em>.
+An object usually does not span multiple regions, except for large objects that do not fit into a single region.
+Those large objects need to be allocated in multiple contiguous regions.
+I quite like this approach because it is so simple.</p>
+
+<p>ZGC is quite similar to Shenandoah in this regard.
+In ZGC&rsquo;s parlance regions are called <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zPage.hpp#l34">pages</a>.
+The major difference to Shenandoah: Pages in ZGC can have different sizes (but always a multiple of 2MB on x64).
+There are 3 different page types in ZGC: <em>small</em> (2MB size), <em>medium</em> (32MB size) and <em>large</em> (some multiple of 2MB).
+Small objects (up to 256KB size) are allocated in small pages, medium-sized objects (up to 4MB) are allocated in medium pages.
+Objects larger than 4MB are allocated in large pages.
+Large pages can only store exactly one object, in constrast to small or medium pages.
+Somewhat confusingly large pages can actually be smaller than medium pages (e.g. for a large object with a size of 6MB).</p>
+
+<p>Another nice property of ZGC is, that it also differentiates between <em>physical</em> and <em>virtual</em> memory.
+The idea behind this is that there usually is plenty of virtual memory (always 4TB in ZGC) while physical memory is more scarce.
+Physical memory can be expanded up to the maximum heap size (set with <code>-Xmx</code> for the JVM), so this is usually much less than the 4 TB of virtual memory.
+Allocating a page of a certain size in ZGC means allocating both physical and virtual memory.
+With ZGC the physical memory doesn&rsquo;t need to be contiguous - only the virtual memory space.
+So why is this actually a nice property?</p>
+
+<p>Allocating a contiguous range of virtual memory should be easy, since we usually have more than enough of it.
+But it is quite easy to imagine a situation where we only have multiple 2MB free pages somewhere in the physical memory, but we need 6MB of contiguous memory for a large object allocation.
+There is enough free physical memory but this memory is non-contiguous.
+ZGC is able to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l160">map</a> this non-contiguous physical pages to a single contiguous virtual memory space.
+If this wasn&rsquo;t possible, we would have run out of memory.</p>
+
+<h3 id="marking-relocating-objects">Marking &amp; Relocating objects</h3>
+
+<p>A collection is split into two major phases: marking &amp; relocating.
+(Actually there are more than those two phases but see the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l301">source</a> for more details).</p>
+
+<p>A GC cycle starts with the marking phase, which marks all reachable objects.
+At the end of this phase we know which objects are still alive and which are garbage.
+ZGC stores this information in the so called live map for each page.
+A live map is a <a href="https://en.wikipedia.org/wiki/Bit_array">bitmap</a> that stores whether the object at the given index is strongly-reachable and/or final-reachable (for objects with a <code>finalize</code>-method).</p>
+
+<p>During the marking-phase the load-barrier in application-threads pushes unmarked references into a thread-local marking buffer.
+As soon as this buffer is full, the GC threads can take ownership of this buffer and recursively traverse all reachable objects from this buffer.
+Marking in an application thread just pushes the reference into a buffer, the GC threads are responsible for walking the object graph and updating the live map.</p>
+
+<p>After marking ZGC needs to relocate all live objects in the relocation set.
+The relocation set is a set of pages, that were chosen to be evacuated based on some criteria after marking (e.g. those page with the most amount of garbage).
+An object can be relocated either by a GC thread or an application thread (again through the load-barrier).
+ZGC allocates a forwarding table for each page in the relocation set.
+The forwarding table is basically a hash map that stores the address an object has been relocated to (if the object has already been relocated).</p>
+
+<p>The advantage with ZGC&rsquo;s approach is that we only need to allocate space for the forwarding pointer for pages in the relocation set.
+Shenandoah in comparison stores the forwarding pointer in the object itself for each and every object, which has a certain memory usage overhead.</p>
+
+<p>The GC threads walk over the live objects in the relocation set and relocate all those objects that haven&rsquo;t been relocated yet.
+It could even happen that an application thread and a GC thread try to relocate the same object at the same time, in this case the first thread to relocate the object wins.
+ZGC uses an atomic <a href="https://en.wikipedia.org/wiki/Compare-and-swap">CAS</a>-operation to determine a winner.</p>
+
+<p>The relocation phase is finished as soon as the GC threads have finished walking the relocation set.
+Although that means all objects have been relocated, there will generally still be references into the relocation set, that need to be <em>remapped</em> to their new addresses.
+These reference will then be healed by trapping load-barriers or if this doesn&rsquo;t happen soon enough by the next marking cycle.
+That means marking also needs to inspect the forward table to <em>remap</em> (but not relocate - all objects are guaranteed to be relocated) objects to their new addresses.</p>
+
+<h3 id="the-load-barrier">The Load-Barrier</h3>
+
+<p>ZGC needs a so called load-barrier (sometimes referred to as read-barrier) when reading a reference from the heap.
+We need to insert this load-barrier each time the Java-Code accesses a field of object type, e.g. <code>obj.field</code>.
+Accessing fields of some other primitive type doesn&rsquo;t need a barrier, e.g. <code>obj.anInt</code> or <code>obj.anDouble</code>.
+ZGC doesn&rsquo;t need store/write-barriers for <code>obj.field = someOtherObj</code>.</p>
+
+<p>Depending on the stage the GC is currently in (stored in the global variable <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l27">ZGlobalPhase</a>), the barrier either marks the object or relocates it if the reference isn&rsquo;t already marked or <em>remapped</em>.</p>
+
+<p>The global variables <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l33">ZAddressGoodMask</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l34">ZAddressBadMask</a> store the mask that determines if a reference is already considered good (that means already marked or remapped) or if there is still some action necessary.
+These variables are only changed at the start of marking- and relocation-phase and both at the same <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zAddress.cpp#l31">time</a>.
+This table from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.hpp#l99">source</a> gives a nice overview in which state these masks can be:</p>
+
+<pre><code>               GoodMask         BadMask          WeakGoodMask     WeakBadMask
+               --------------------------------------------------------------
+Marked0        001              110              101              010
+Marked1        010              101              110              001
+Remapped       100              011              100              011
+</code></pre>
+
+<p>Assembly code for the barrier can be seen in the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/cpu/x86/macroAssembler_x86.cpp#l6706">MacroAssembler</a> for x64, I will only show some pseudo assembly code for this barrier:</p>
+
+<pre><code>mov rax, [r10 + some_field_offset]
+test rax, [address of ZAddressBadMask]
+jnz load_barrier_mark_or_relocate
+
+# otherwise reference in rax is considered good
+</code></pre>
+
+<p>The first assembly instruction reads a reference from the heap: <code>r10</code> stores the object reference and <code>some_field_offset</code> is some constant field offset.
+The loaded reference is stored in the <code>rax</code> register.
+This reference is then tested (this is just an bitwise-and) against the current bad mask.
+Synchronization isn&rsquo;t necessary here since <code>ZAddressBadMask</code> only gets updated when the world is stopped, while no application thread is running.
+If the result is non-zero, we need to execute the barrier.
+The barrier needs to either mark or relocate the object depending on which GC phase we are currently in.
+After this action it needs to update the reference stored in <code>r10 + some_field_offset</code> with the good reference.
+This is necessary such that subsequent loads from this field return a good reference.
+Since we might need to update the reference-address, we need to use two registers <code>r10</code> and <code>rax</code> for the loaded reference and the objects address.
+The good reference also needs to be stored into register <code>rax</code>, such that execution can continue just as when we would have loaded a good reference.</p>
+
+<p>Since every single reference needs to be marked or relocated, throughput is likely to decrease right after starting a marking- or relocation-phase.
+This should get better quite fast when most references are healed.</p>
+
+<h3 id="conclusion">Conclusion</h3>
+
+<p>I hope I could give a short introduction into ZGC.
+I certainly couldn&rsquo;t describe every detail about this GC in a single blog post.
+If you need more information, ZGC is <a href="http://cr.openjdk.java.net/~pliden/zgc/">open-source</a>, so you can study its whole implementation.</p>
+
+                <br>
+		<p class="back-to-posts"><a href="/blog/">Back to posts</a></p>
+            </div>
+            <br>
+            <div class="disqus">
+                
+            </div>
+            
+        </div>
+    </div>
+</section>
+
+
+
+
+
+
+
+
+
+</body>
+</html>
+
