@@ -386,7 +386,7 @@ It usually consists of local and global variables, but also other internal VM st
 
 <p>Another pause is required when ending the marking phase.
 In this pause the GC needs to empty and traverse all thread-local marking buffers.
-Since the GC could discover a large unmarked graph this could take longer.
+Since the GC could discover a large unmarked sub-graph this could take longer.
 ZGC tries to avoid this by stopping the end of marking phase after 1 millisecond.
 It returns into the concurrent marking phase until the whole graph is traversed, then the end of marking phase can be started again.</p>
 
