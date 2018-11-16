@@ -196,7 +196,7 @@ Again, note that <code>vmEntryToNative</code> is used when JS functions implemen
 <p>It also stores the current call frame in <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/runtime/VM.h?rev=238247#L512">VM::topCallFrame</a>, but we will later cover that in more detail.
 <code>nativeCallTrampoline</code> also obviously calls the native function.
 When it returns it checks <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/runtime/VM.h?rev=238247#L977">VM::m_exception</a> whether the C++-function has thrown an exception and would call into exception handling if so.
-It then returns to the caller-JS-Function.</p>
+It then returns to the caller JS function.</p>
 
 <h3 id="stack-unwinding">Stack Unwinding</h3>
 
