@@ -8,28 +8,9 @@
 <meta name="MobileOptimized" content="320">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
-<meta name="author" content="Dominik Inführ">
-<meta name="description" content="">
-
-<meta property="og:title" content="404 Page not found" />
-<meta property="og:description" content="" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="" />
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+<base href="https://dinfuehr.github.io/">
 <title>
 
 
@@ -39,7 +20,13 @@
 <link rel="canonical" href="">
 
 
-
+<script type="text/javascript">
+    var baseURL = 'https:\/\/dinfuehr.github.io\/';
+    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
+    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
+        window.location.protocol = 'https:';
+    }
+</script>
 
 
 
@@ -67,7 +54,7 @@
 
 
 
-
+  <link href="https://dinfuehr.github.io/index.xml" rel="alternate" type="application/rss+xml" title="Dominik&#39;s Blog" />
 
 
 
@@ -82,10 +69,10 @@
         <div class="content">
             
             <a href="/"><div class="name">Dominik Inführ</div></a>
-            
             <nav>
                 <ul>
-                    
+                    <a href="/blog/"><li>Blog</li></a>
+                    <a href="/about/"><li>About</li></a>
                 </ul>
             </nav>
         </div>
@@ -95,24 +82,17 @@
 <section class="icons">
     <div class="container">
         <div class="content">
+
         
-            <a href="//github.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/github.svg" alt="github" /></a>
+            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
         
 
         
-            <a href="//twitter.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
+            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
         
 
         
 
-        
-
-        
-            
         
 
         
@@ -122,7 +102,7 @@
         
 
         
-
+            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
         
         </div>
     </div>
@@ -132,13 +112,11 @@
     <div class="container f04">
         <div class="content">
             <div class="num">404</div>
-	    <div class="detail">Sorry, this page does not exist.</div>
-	    <div class="suggestion"><a href="/">Visit home page</a></div>
+            <div class="detail">Sorry, this page does not exist.</div>
+            <div class="suggestion"><a href="/">Visit home page</a></div>
         </div>
     </div>
 </section>
-
-
 
 
 

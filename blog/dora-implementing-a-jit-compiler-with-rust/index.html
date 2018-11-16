@@ -8,33 +8,9 @@
 <meta name="MobileOptimized" content="320">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
-<meta name="author" content="Dominik Inführ">
-<meta name="description" content="I am writing Dora, a simple JIT-compiler with Rust. Dora is both the name of the custom programming language and of the JIT-compiler. After some time working on it, I want to write about the experiences I made. I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.
-Architecture The architecture is pretty simple: dora hello.dora parses the given input file into an Abstract Syntax Tree (AST).">
-
-<meta property="og:title" content="Dora: Implementing a JIT-compiler with Rust" />
-<meta property="og:description" content="I am writing Dora, a simple JIT-compiler with Rust. Dora is both the name of the custom programming language and of the JIT-compiler. After some time working on it, I want to write about the experiences I made. I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.
-Architecture The architecture is pretty simple: dora hello.dora parses the given input file into an Abstract Syntax Tree (AST)." />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/" />
 
 
-
-<meta property="article:published_time" content="2017-09-12T08:34:34&#43;01:00"/>
-
-<meta property="article:modified_time" content="2017-09-12T08:34:34&#43;01:00"/>
-
-
-
-
-
-
-
-
-
-
-
-
+<base href="https://dinfuehr.github.io/">
 <title>
 
 
@@ -44,7 +20,13 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
 <link rel="canonical" href="https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/">
 
 
-
+<script type="text/javascript">
+    var baseURL = 'https:\/\/dinfuehr.github.io\/';
+    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
+    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
+        window.location.protocol = 'https:';
+    }
+</script>
 
 
 
@@ -75,8 +57,6 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
 
 
 
-
-
 </head>
 
 
@@ -87,10 +67,10 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
         <div class="content">
             
             <a href="/"><div class="name">Dominik Inführ</div></a>
-            
             <nav>
                 <ul>
-                    
+                    <a href="/blog/"><li>Blog</li></a>
+                    <a href="/about/"><li>About</li></a>
                 </ul>
             </nav>
         </div>
@@ -100,24 +80,17 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
 <section class="icons">
     <div class="container">
         <div class="content">
+
         
-            <a href="//github.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/github.svg" alt="github" /></a>
+            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
         
 
         
-            <a href="//twitter.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
+            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
         
 
         
 
-        
-
-        
-            
         
 
         
@@ -127,7 +100,7 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
         
 
         
-
+            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
         
         </div>
     </div>
@@ -148,12 +121,8 @@ Architecture The architecture is pretty simple: dora hello.dora parses the given
                     <div class="initials"><a href="https://dinfuehr.github.io/"></a></div>
                 </div>
                 <div class="meta">
-                    
-                    <div class="date" title='Tue Sep 12 2017 08:34:34 &#43;0100'>Sep 12, 2017</div>
-                    
-                    
-		    <div class="reading-time"><div class="middot"></div>15 minutes read</div>
-                    
+                    <div class="date" title="Tue Sep 12 2017 08:34:34 &#43;0100">Sep 12, 2017</div>
+                    <div class="reading-time"><div class="middot"></div>15 minutes read</div>
                 </div>
             </div>
             <div class="markdown">
@@ -474,18 +443,15 @@ Nevertheless working on it was and still is both fun and educational and there w
 The source is on <a href="https://github.com/dinfuehr/dora">Github</a>, contributions are welcome.</p>
 
                 <br>
-		<p class="back-to-posts"><a href="/blog/">Back to posts</a></p>
+                <p><a href="/blog/">Back to posts</a></p>
             </div>
             <br>
             <div class="disqus">
                 
             </div>
-            
         </div>
     </div>
 </section>
-
-
 
 
 

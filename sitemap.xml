@@ -3,6 +3,11 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/</loc>
+    <lastmod>2018-11-15T22:36:24+02:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://dinfuehr.github.io/blog/a-first-look-into-zgc/</loc>
     <lastmod>2018-01-03T20:33:37+02:00</lastmod>
   </url>
@@ -24,7 +29,7 @@
   
   <url>
     <loc>https://dinfuehr.github.io/blog/</loc>
-    <lastmod>2018-01-03T20:33:37+02:00</lastmod>
+    <lastmod>2018-11-15T22:36:24+02:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -35,7 +40,7 @@
   
   <url>
     <loc>https://dinfuehr.github.io/</loc>
-    <lastmod>2018-01-03T20:33:37+02:00</lastmod>
+    <lastmod>2018-11-15T22:36:24+02:00</lastmod>
     <priority>0</priority>
   </url>
   

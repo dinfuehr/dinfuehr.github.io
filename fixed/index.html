@@ -8,28 +8,9 @@
 <meta name="MobileOptimized" content="320">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
-<meta name="author" content="Dominik Inführ">
-<meta name="description" content="">
-
-<meta property="og:title" content="Fixeds" />
-<meta property="og:description" content="" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="https://dinfuehr.github.io/fixed/" />
 
 
-
-<meta property="og:updated_time" content="2017-01-04T08:47:14&#43;01:00"/>
-
-
-
-
-
-
-
-
-
-
-
+<base href="https://dinfuehr.github.io/">
 <title>
 
 
@@ -39,7 +20,13 @@
 <link rel="canonical" href="https://dinfuehr.github.io/fixed/">
 
 
-
+<script type="text/javascript">
+    var baseURL = 'https:\/\/dinfuehr.github.io\/';
+    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
+    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
+        window.location.protocol = 'https:';
+    }
+</script>
 
 
 
@@ -67,7 +54,7 @@
 
 
 
-
+  <link href="https://dinfuehr.github.io/fixed/index.xml" rel="alternate" type="application/rss+xml" title="Dominik&#39;s Blog" />
 
 
 
@@ -82,10 +69,10 @@
         <div class="content">
             
             <a href="/"><div class="name">Dominik Inführ</div></a>
-            
             <nav>
                 <ul>
-                    
+                    <a href="/blog/"><li>Blog</li></a>
+                    <a href="/about/"><li>About</li></a>
                 </ul>
             </nav>
         </div>
@@ -95,24 +82,17 @@
 <section class="icons">
     <div class="container">
         <div class="content">
+
         
-            <a href="//github.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/github.svg" alt="github" /></a>
+            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
         
 
         
-            <a href="//twitter.com/dinfuehr" target="_blank" rel="noopener"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
+            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
         
 
         
 
-        
-
-        
-            
         
 
         
@@ -122,7 +102,7 @@
         
 
         
-
+            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
         
         </div>
     </div>
@@ -131,24 +111,16 @@
 <section class="main">
     <div class="container">
         <div class="content">
-            <div class="page-heading">
-
-    Fixeds
-
-</div>
-
-            <div class="markdown">
+            <div class="page-heading">Blog</div>
+            <ul>
                 
-            </div>
-            
-            <nav class="section-items">
-                <ul>
+                <li class="post-item">
+    <span class="meta">Jan 4, 2017</span>
+    <a href="https://dinfuehr.github.io/about/"><span>about</span></a>
+</li>
+
                 
-                    <li><a href="/about/">about</a></li>
-                
-                </ul>
-            </nav>
-            
+            </ul>
         </div>
     </div>
 </section>
@@ -158,8 +130,7 @@
 
 
 
-
-
 </body>
 </html>
+
 

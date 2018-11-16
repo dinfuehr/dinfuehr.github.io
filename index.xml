@@ -6,10 +6,19 @@
     <description>Recent content on Dominik&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 03 Jan 2018 20:33:37 +0200</lastBuildDate>
+    <lastBuildDate>Thu, 15 Nov 2018 22:36:24 +0200</lastBuildDate>
     
 	<atom:link href="https://dinfuehr.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Stack Unwinding in JavaScriptCore</title>
+      <link>https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/</link>
+      <pubDate>Thu, 15 Nov 2018 22:36:24 +0200</pubDate>
+      
+      <guid>https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/</guid>
+      <description>JavaScriptCore (JSC, WebKit&amp;rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C++ can be arbitrarily intertwined and JS call frames do not match the system&amp;rsquo;s calling convention. On the other hand while JSC controls JS stack frames and knows how to unwind them, it can&amp;rsquo;t do the same thing for native C++ stack frames since this is defined by the compiler (its flags) and/or system.</description>
+    </item>
     
     <item>
       <title>A first look into ZGC</title>
