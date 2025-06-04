@@ -132,38 +132,17 @@ Depending on the size of the heap such a pause could take several seconds, which
 
     <div class="content">
       
-  <section class="container post">
-    <article>
-      <header>
-        <div class="post-title">
-          <h1 class="title">
-            <a class="title-link" href="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
-              A first look into ZGC
-            </a>
-          </h1>
-        </div>
-        <div class="post-meta">
-          <div class="date">
-            <span class="posted-on">
-              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
-              <time datetime="2018-01-03T20:33:37&#43;02:00">
-                January 3, 2018
-              </time>
-            </span>
-            <span class="reading-time">
-              <i class="fa-solid fa-clock" aria-hidden="true"></i>
-              13-minute read
-            </span>
-          </div>
-          
-          
-          
-        </div>
-      </header>
+  <section class="container page">
+  <article>
+    <header>
+      <h1 class="title">
+        <a class="title-link" href="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
+          A first look into ZGC
+        </a>
+      </h1>
+    </header>
 
-      <div class="post-content">
-        
-        <p><a href="http://cr.openjdk.java.net/~pliden/zgc/"  class="external-link" target="_blank" rel="noopener">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
+    <p><a href="http://cr.openjdk.java.net/~pliden/zgc/"  class="external-link" target="_blank" rel="noopener">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
 It was mainly written by <a href="https://twitter.com/perliden"  class="external-link" target="_blank" rel="noopener">Per Liden</a>.
 ZGC is similar to <a href="https://wiki.openjdk.java.net/display/shenandoah/Main"  class="external-link" target="_blank" rel="noopener">Shenandoah</a> or Azul&rsquo;s C4 that focus on reducing pause-times while still <a href="https://en.wikipedia.org/wiki/Mark-compact_algorithm"  class="external-link" target="_blank" rel="noopener">compacting</a> the heap.
 Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap.
@@ -399,62 +378,10 @@ This phase is quite similar to starting marking, with the difference that this p
 I certainly couldn&rsquo;t describe every detail about this GC in a single blog post.
 If you need more information, ZGC is <a href="http://cr.openjdk.java.net/~pliden/zgc/"  class="external-link" target="_blank" rel="noopener">open-source</a>, so it is possible to study the whole implementation.</p>
 
-      </div>
+  </article>
+</section>
 
-
-      <footer>
-        
-
-
-        
-<ul>
   
-    
-      <li>
-        <a href="https://github.com/dinfuehr/" aria-label="Github"   >
-          <i class="fa fa-github" aria-hidden="true"></i>
-        </a>
-      </li>
-    
-  
-    
-      <li>
-        <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
-          <i class="fa fa-twitter" aria-hidden="true"></i>
-        </a>
-      </li>
-    
-  
-    
-      <li>
-        <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
-          <i class="fa fa-envelope" aria-hidden="true"></i>
-        </a>
-      </li>
-    
-  
-    
-      <li>
-        <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
-          <i class="fa fa-rss" aria-hidden="true"></i>
-        </a>
-      </li>
-    
-  
-</ul>
-
-        
-        
-        
-        
-        
-        
-        
-      </footer>
-    </article>
-
-    
-  </section>
 
     </div>
 
