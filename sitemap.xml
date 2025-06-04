@@ -1,58 +1,30 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  
-  <url>
-    <loc>https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/</loc>
-    <lastmod>2018-11-15T22:36:24+02:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/blog/a-first-look-into-zgc/</loc>
-    <lastmod>2018-01-03T20:33:37+02:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/</loc>
-    <lastmod>2017-09-12T08:34:34+01:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/</loc>
-    <lastmod>2017-04-20T20:33:37+02:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/about/</loc>
-    <lastmod>2017-01-04T08:47:14+01:00</lastmod>
-  </url>
-  
   <url>
     <loc>https://dinfuehr.github.io/blog/</loc>
-    <lastmod>2018-11-15T22:36:24+02:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/categories/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+    <lastmod>2019-08-10T08:34:34+01:00</lastmod>
+  </url><url>
     <loc>https://dinfuehr.github.io/</loc>
+    <lastmod>2019-08-10T08:34:34+01:00</lastmod>
+  </url><url>
+    <loc>https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/</loc>
     <lastmod>2018-11-15T22:36:24+02:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://dinfuehr.github.io/fixed/</loc>
+  </url><url>
+    <loc>https://dinfuehr.github.io/blog/a-first-look-into-zgc/</loc>
+    <lastmod>2018-01-03T20:33:37+02:00</lastmod>
+  </url><url>
+    <loc>https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/</loc>
+    <lastmod>2017-09-12T08:34:34+01:00</lastmod>
+  </url><url>
+    <loc>https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/</loc>
+    <lastmod>2017-04-20T20:33:37+02:00</lastmod>
+  </url><url>
+    <loc>https://dinfuehr.github.io/about/</loc>
     <lastmod>2017-01-04T08:47:14+01:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
+    <loc>https://dinfuehr.github.io/categories/</loc>
+  </url><url>
     <loc>https://dinfuehr.github.io/tags/</loc>
-    <priority>0</priority>
   </url>
-  
 </urlset>

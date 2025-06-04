@@ -1,32 +1,60 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html lang="en">
 
 <head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="chrome=1">
-<meta name="HandheldFriendly" content="True">
-<meta name="MobileOptimized" content="320">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="referrer" content="no-referrer">
-
-
-<base href="https://dinfuehr.github.io/">
-<title>
-
-
-     Encoding of immediate values on AArch64 
-
+  <title>
+  Encoding of immediate values on AArch64 · Dominik&#39;s Blog
 </title>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+
+
+
+
+<meta name="author" content="Dominik Inführ">
+<meta name="description" content="AArch64 is an ISA with a fixed instruction width of 32-bit.
+This obviously means there is not enough space to store a 64-bit immediate in a single instruction.
+Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width.
+A 64-bit immediate on x86-64 is really just the sequence of bytes:
+mov rax, 0x1122334455667788
+# encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11
+A fixed-width ISA like ARM has to treat immediates differently.
+Assigning the same value to the register x0 takes four instructions:">
+<meta name="keywords" content="">
+
+
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Encoding of immediate values on AArch64">
+  <meta name="twitter:description" content="AArch64 is an ISA with a fixed instruction width of 32-bit. This obviously means there is not enough space to store a 64-bit immediate in a single instruction. Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width. A 64-bit immediate on x86-64 is really just the sequence of bytes:
+mov rax, 0x1122334455667788 # encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11 A fixed-width ISA like ARM has to treat immediates differently. Assigning the same value to the register x0 takes four instructions:">
+
+<meta property="og:url" content="https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/">
+  <meta property="og:site_name" content="Dominik&#39;s Blog">
+  <meta property="og:title" content="Encoding of immediate values on AArch64">
+  <meta property="og:description" content="AArch64 is an ISA with a fixed instruction width of 32-bit. This obviously means there is not enough space to store a 64-bit immediate in a single instruction. Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width. A 64-bit immediate on x86-64 is really just the sequence of bytes:
+mov rax, 0x1122334455667788 # encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11 A fixed-width ISA like ARM has to treat immediates differently. Assigning the same value to the register x0 takes four instructions:">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="blog">
+    <meta property="article:published_time" content="2017-04-20T20:33:37+02:00">
+    <meta property="article:modified_time" content="2017-04-20T20:33:37+02:00">
+
+
+
+
 <link rel="canonical" href="https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/">
 
 
-<script type="text/javascript">
-    var baseURL = 'https:\/\/dinfuehr.github.io\/';
-    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
-    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
-        window.location.protocol = 'https:';
-    }
-</script>
+<link rel="preload" href="/fonts/fa-brands-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+
+
+  
+  
+  <link rel="stylesheet" href="/css/coder.min.c8e4eea149ae1dc7c61ba9b0781793711a4e657f7e07a4413f9abc46d52dffc4.css" integrity="sha256-yOTuoUmuHcfGG6mweBeTcRpOZX9&#43;B6RBP5q8RtUt/8Q=" crossorigin="anonymous" media="screen" />
 
 
 
@@ -34,23 +62,24 @@
 
 
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Ubuntu+Mono:400,400i,700,700i|Raleway:500">
 
-
-
-    <link rel="stylesheet" href="/css/reset.css">
-    <link rel="stylesheet" href="/css/pygments.css">
-    <link rel="stylesheet" href="/css/main.css">
-    
+ 
 
 
 
 
-<link rel="shortcut icon"
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" sizes="any">
+<link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16">
 
-    href="/img/favicon.ico"
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
 
->
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
 
 
 
@@ -60,133 +89,141 @@
 </head>
 
 
-<body lang="">
-
-<section class="header">
-    <div class="container">
-        <div class="content">
-            
-            <a href="/"><div class="name">Dominik Inführ</div></a>
-            <nav>
-                <ul>
-                    <a href="/blog/"><li>Blog</li></a>
-                    <a href="/about/"><li>About</li></a>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</section>
-
-<section class="icons">
-    <div class="container">
-        <div class="content">
-
-        
-            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
-        
-
-        
-            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
-        
-
-        
-
-        
-            <a href="mailto:dominik.infuehr@gmail.com"><img class="icon" src="/img/email.svg" alt="email" /></a>
-        
-
-        
-            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
-        
-        </div>
-    </div>
-</section>
 
 
-<section class="main post non-narrow zero-top-spacing">
-    <div class="container">
-        <div class="content">
-            <div class="front-matter">
-                <div class="title-container">
-                    <div class="page-heading">
-
-    Encoding of immediate values on AArch64
-
+<body class="preload-transitions colorscheme-light">
+  
+<div class="float-container">
+    <a id="dark-mode-toggle" class="colorscheme-toggle">
+        <i class="fa-solid fa-adjust fa-fw" aria-hidden="true"></i>
+    </a>
 </div>
 
-                    <div class="initials"><a href="https://dinfuehr.github.io/"></a></div>
-                </div>
-                <div class="meta">
-                    <div class="date" title="Thu Apr 20 2017 20:33:37 CEST">Apr 20, 2017</div>
-                    <div class="reading-time"><div class="middot"></div>7 minutes read</div>
-                </div>
-            </div>
-            <div class="markdown">
-                
 
-<p>AArch64 is an ISA with a fixed instruction width of 32-bit.
+  <main class="wrapper">
+    <nav class="navigation">
+  <section class="container">
+    
+    <a class="navigation-title" href="https://dinfuehr.github.io/">
+      Dominik&#39;s Blog
+    </a>
+    
+    
+      <input type="checkbox" id="menu-toggle" />
+      <label class="menu-button float-right" for="menu-toggle">
+        <i class="fa-solid fa-bars fa-fw" aria-hidden="true"></i>
+      </label>
+      <ul class="navigation-list">
+        
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/blog/">Blog</a>
+            </li>
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/about/">About</a>
+            </li>
+          
+        
+        
+      </ul>
+    
+  </section>
+</nav>
+
+
+    <div class="content">
+      
+  <section class="container post">
+    <article>
+      <header>
+        <div class="post-title">
+          <h1 class="title">
+            <a class="title-link" href="https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/">
+              Encoding of immediate values on AArch64
+            </a>
+          </h1>
+        </div>
+        <div class="post-meta">
+          <div class="date">
+            <span class="posted-on">
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              <time datetime="2017-04-20T20:33:37&#43;02:00">
+                April 20, 2017
+              </time>
+            </span>
+            <span class="reading-time">
+              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              7-minute read
+            </span>
+          </div>
+          
+          
+          
+        </div>
+      </header>
+
+      <div class="post-content">
+        
+        <p>AArch64 is an ISA with a fixed instruction width of 32-bit.
 This obviously means there is not enough space to store a 64-bit immediate in a single instruction.
 Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width.
 A 64-bit immediate on x86-64 is really just the sequence of bytes:</p>
-
-<pre><code>mov rax, 0x1122334455667788
+<pre tabindex="0"><code>mov rax, 0x1122334455667788
 # encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11
-</code></pre>
-
-<p>A fixed-width ISA like ARM has to treat immediates differently.
+</code></pre><p>A fixed-width ISA like ARM has to treat immediates differently.
 Assigning the same value to the register <code>x0</code> takes four instructions:</p>
-
-<pre><code>movz x0, 0x7788
+<pre tabindex="0"><code>movz x0, 0x7788
 movk x0, 0x5566, lsl 16
 movk x0, 0x3344, lsl 32
 movk x0, 0x1122, lsl 48
-</code></pre>
-
-<h3 id="move-wide-immediates">Move wide immediates</h3>
-
+</code></pre><h3 id="move-wide-immediates">
+  Move wide immediates
+  <a class="heading-link" href="#move-wide-immediates">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>The move instructions (<code>movz</code>, <code>movn</code> and <code>movk</code>) have space for a 16-bit unsigned immediate that can be shifted by either 0, 16, 32 or 48 bits (2 bits for the shift).</p>
-
 <p><code>movz</code> assigns the given 16-bit value to the position given by the shift operand and <code>z</code>eroes all other bits.
 <code>movk</code> does the same but <code>k</code>eeps the value of the other bits instead of zeroing them.
 So in the worst case a 64-bit immediate needs 4 instructions.
 But many common immediates can be encoded in less:</p>
-
-<pre><code># x0 = 0x10000
+<pre tabindex="0"><code># x0 = 0x10000
 movz x0, 0x1, lsl 16
 
 # x0 = 0x10001
 movz x0, 0x1
 movk x0, 0x1, lsl 16
-</code></pre>
-
-<p>It is only necessary to initialize the 16-bit parts of the 64-bit register that are non-zero.
+</code></pre><p>It is only necessary to initialize the 16-bit parts of the 64-bit register that are non-zero.
 Now that we have seen this, how can we encode -1?
 All bits are 1 in this case, so with only <code>movz</code> and <code>movk</code> we would have to use 4 instructions again.</p>
-
 <p>For such numbers AArch64 features the <code>movn</code> instruction that assigns the expression <code>~(imm16 &lt;&lt; shift)</code> to the register.
 -1 can so be encoded in one single instruction: <code>movn x0, 0</code>.
 <code>movn</code> can also be combined with <code>movk</code>, use it to set parts of the number that are not all ones.</p>
-
-<p><a href="https://github.com/v8/v8/blob/master/src/arm64/macro-assembler-arm64.cc#L164">v8</a> for example really determines whether it is more beneficial (this means less instructions) to encode an immediate via <code>movn</code> or <code>movz</code>.</p>
-
-<h3 id="add-sub-immediates">Add/Sub Immediates</h3>
-
+<p><a href="https://github.com/v8/v8/blob/master/src/arm64/macro-assembler-arm64.cc#L164"  class="external-link" target="_blank" rel="noopener">v8</a> for example really determines whether it is more beneficial (this means less instructions) to encode an immediate via <code>movn</code> or <code>movz</code>.</p>
+<h3 id="addsub-immediates">
+  Add/Sub Immediates
+  <a class="heading-link" href="#addsub-immediates">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>In addition to immediates in move instructions, some instructions like <code>add</code> or <code>sub</code> also accept an immediate as operand.
 This allows to encode some numbers directly into the instruction, instead of using a temporary register.
 All instructions of the add/sub immediate instruction class allow a 12-bit unsigned immediate that can optionally be shifted by 12 bits (1 bit for the shift).
 If you want to use these instructions with an immediate that can&rsquo;t be encoded in this format, you have no choice but to use a temporary register and possibly multiple instructions for initializing this register.
 Although negative numbers e.g. -1 (which is all ones) cannot be encoded with an <code>add</code> instruction, the instruction <code>sub</code> can be used to subtract 1: <code>sub x0, x0, 1</code>.</p>
-
-<h3 id="logical-immediates">Logical Immediates</h3>
-
+<h3 id="logical-immediates">
+  Logical Immediates
+  <a class="heading-link" href="#logical-immediates">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>There is another instruction class that allows immediates as an operand: logical immediate. This instruction class is used for <code>and</code> (bitwise and), <code>orr</code> (bitwise or), <code>eor</code> (bitwise exclusive or) and <code>ands</code> (bitwise and and set flags).
 This instruction class is the most complicated and non-intuitive (at least for me) and the reason I started to write this blog post.
 Let&rsquo;s look into the definition from the ARM Reference Manual:</p>
-
 <blockquote>
 <p>The logical immediate instructions accept a bitmask immediate bimm32 or bimm64.
 Such an immediate consists EITHER of a single consecutive sequence with at least one non-zero bit, and at least one zero bit, within an element of 2, 4, 8, 16, 32 or 64 bits;
@@ -194,27 +231,21 @@ the element then being replicated across the register width, or the bitwise inve
 The immediate values of all-zero and all-ones may not be encoded as a bitmask immediate, so an assembler must either generate an error for a logical instruction with such an immediate,
 or a programmer-friendly assembler may transform it into some other instruction which achieves the intended result.</p>
 </blockquote>
-
 <p>That&rsquo;s quite a lot of information in such a short paragraph.
 I will try to describe this format in my own words:
 Logical immediate instructions have 13-bits for encoding the immediate, it consists of three fields <code>N</code> (1 bit), <code>immr</code> (6 bits) and <code>imms</code> (6 bits).
 This format does not allow to encode 0 or ~0 (all ones) as an immediate.
 Although this sounds problematic at first, this isn&rsquo;t actually a restriction: this format is only used for instructions such as bitwise <code>and</code> and <code>orr</code> where these constants are not really useful (e.g. <code>x0 | 0</code> can be optimized to <code>x0</code> while <code>x0 | ~0</code> can be optimized to <code>~0</code>).</p>
-
 <p>The bit pattern of the immediate consists of identical sub-patterns with 2-, 4-, 8-, 16-, 32- or 64-bits length.
 Both the sub-pattern size and value is stored in the <code>N</code> and <code>imms</code> fields.
 The bit pattern needs to be a consecutive sequence of (at least one) zeroes, followed by a consecutive sequence of (at least one) ones (the regex for that pattern would be <code>0+1+</code>).
 To generate the bit pattern, the format really just stores the number of consecutive ones in the element and the size of the element.</p>
-
 <p>The so specified element value can be right-rotated up to element size minus 1 to move the start of the sequence of ones to any other point in the element.
 The number of rotations is stored in <code>immr</code> which has 6 bits, so it allows up to 63 rotations in the case of an element size of 64 bits.
 An element size of 2 only allows 0 or 1 rotations, in this case only the least significant bit is considered, the upper 5 bits of <code>immr</code> are simply ignored.</p>
-
 <p>The element gets replicated until it reaches 32- or 64-bits.
 13-bits could store 8192 different values, but since e.g. the rotation is not always used to its full potential with smaller element sizes it actually allows less different values but probably a more useful set of bit patterns.</p>
-
 <p>Since <code>immr</code> is actually quite boring (just stores the number of rotations), let&rsquo;s look into how <code>N</code> and <code>imms</code> can store both the element size and the number of consecutive ones at the same time:</p>
-
 <table>
   <tr>
     <td>N</td>
@@ -282,50 +313,150 @@ An element size of 2 only allows 0 or 1 rotations, in this case only the least s
     <td>64 bits</td>
   </tr>
 </table>
-
 <p>The upper bits specify the element size, while the lower bits marked with <code>x</code> are used to store the consecutive sequence of ones.
 0 means there is one 1 in the bit pattern, 1 means there are two 1&rsquo;s and so on.
 At the same time it is not allowed to set all <code>x</code> to 1, since this would allow to create all ones
 (Remember: The format doesn&rsquo;t allow 0 or all ones to be encoded).</p>
-
 <p>Let&rsquo;s see some examples:</p>
-
 <ul>
 <li><code>0|111100</code> represents element <code>01</code> (2 bits element size, one 1)</li>
 <li><code>0|110101</code> represents element <code>00111111</code> (8 bits element size, six 1&rsquo;s)</li>
 </ul>
-
-<p>There was an interesting <a href="http://stackoverflow.com/a/33265035/727454">answer on Stack Overflow</a> that enumerates all 5334 possible 64-bit immediates with this encoding.
-I ported this <a href="https://gist.github.com/dinfuehr/9e1c2f28d0f912eae5e595207cb835c2">code to Ruby</a> and dumped the fields <code>n</code>, <code>immr</code> and <code>imms</code> for all values.
-See here for the <a href="https://gist.github.com/dinfuehr/51a01ac58c0b23e4de9aac313ed6a06a">full output</a> of the script.
+<p>There was an interesting <a href="http://stackoverflow.com/a/33265035/727454"  class="external-link" target="_blank" rel="noopener">answer on Stack Overflow</a> that enumerates all 5334 possible 64-bit immediates with this encoding.
+I ported this <a href="https://gist.github.com/dinfuehr/9e1c2f28d0f912eae5e595207cb835c2"  class="external-link" target="_blank" rel="noopener">code to Ruby</a> and dumped the fields <code>n</code>, <code>immr</code> and <code>imms</code> for all values.
+See here for the <a href="https://gist.github.com/dinfuehr/51a01ac58c0b23e4de9aac313ed6a06a"  class="external-link" target="_blank" rel="noopener">full output</a> of the script.
 I verified the output by comparing all values to the output of the AArch64 assembler.
 Scrolling over all values, element sizes, rotations etc. should give you a quick overview of what numbers can be encoded with this representation.</p>
-
-<p>For some source code examples, see e.g. LLVM, which also handles <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L213">encoding</a> and <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L292">decoding</a> of logical immediates.</p>
-
-<h3 id="other-immediates">Other immediates</h3>
-
+<p>For some source code examples, see e.g. LLVM, which also handles <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L213"  class="external-link" target="_blank" rel="noopener">encoding</a> and <a href="https://github.com/llvm-mirror/llvm/blob/5c95b810cb3a7dee6d49c030363e5bf0bb41427e/lib/Target/AArch64/MCTargetDesc/AArch64AddressingModes.h#L292"  class="external-link" target="_blank" rel="noopener">decoding</a> of logical immediates.</p>
+<h3 id="other-immediates">
+  Other immediates
+  <a class="heading-link" href="#other-immediates">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>There are even more instruction classes that accept immediates as operands
 (There is even one with floating-point).
 But IMHO they are not as complicated as the logical immediate class.</p>
 
-                <br>
-                <p><a href="/blog/">Back to posts</a></p>
-            </div>
-            <br>
-            <div class="disqus">
-                
-            </div>
-        </div>
+      </div>
+
+
+      <footer>
+        
+
+
+        
+<ul>
+  
+    
+      <li>
+        <a href="https://github.com/dinfuehr/" aria-label="Github"   >
+          <i class="fa fa-github" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
+          <i class="fa fa-twitter" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
+          <i class="fa fa-envelope" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
+          <i class="fa fa-rss" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+</ul>
+
+        
+        
+        
+        
+        
+        
+        
+      </footer>
+    </article>
+
+    
+  </section>
+
     </div>
-</section>
+
+    <footer class="footer">
+  <section class="container">
+    ©
+    
+    2025
+     Dominik Inführ 
+    ·
+    
+    Powered by <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> & <a href="https://github.com/luizdepra/hugo-coder/" target="_blank" rel="noopener">Coder</a>.
+    
+  </section>
+</footer>
+
+  </main>
+
+  
+
+  
+  
+  <script src="/js/coder.min.6ae284be93d2d19dad1f02b0039508d9aab3180a12a06dcc71b0b0ef7825a317.js" integrity="sha256-auKEvpPS0Z2tHwKwA5UI2aqzGAoSoG3McbCw73gloxc="></script>
+  
+
+  
+
+  
 
 
+  
 
+  
 
+  
 
+  
 
+  
 
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
 </body>
 </html>
-

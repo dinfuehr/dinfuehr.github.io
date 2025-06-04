@@ -1,32 +1,64 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html lang="en">
 
 <head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="chrome=1">
-<meta name="HandheldFriendly" content="True">
-<meta name="MobileOptimized" content="320">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="referrer" content="no-referrer">
-
-
-<base href="https://dinfuehr.github.io/">
-<title>
-
-
-     Dora: Implementing a JIT-compiler with Rust 
-
+  <title>
+  Dora: Implementing a JIT-compiler with Rust · Dominik&#39;s Blog
 </title>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+
+
+
+
+<meta name="author" content="Dominik Inführ">
+<meta name="description" content="I am writing Dora, a simple JIT-compiler with Rust.
+Dora is both the name of the custom programming language and of the JIT-compiler.
+After some time working on it, I want to write about the experiences I made.
+I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.
+
+  Architecture
+  
+    
+    Link to heading
+  
+
+The architecture is pretty simple: dora hello.dora parses the given input file into an Abstract Syntax Tree (AST). After parsing, the whole AST is semantically checked, if this succeeds execution starts with the main function.">
+<meta name="keywords" content="">
+
+
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Dora: Implementing a JIT-compiler with Rust">
+  <meta name="twitter:description" content="I am writing Dora, a simple JIT-compiler with Rust. Dora is both the name of the custom programming language and of the JIT-compiler. After some time working on it, I want to write about the experiences I made. I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.
+Architecture Link to heading The architecture is pretty simple: dora hello.dora parses the given input file into an Abstract Syntax Tree (AST). After parsing, the whole AST is semantically checked, if this succeeds execution starts with the main function.">
+
+<meta property="og:url" content="https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/">
+  <meta property="og:site_name" content="Dominik&#39;s Blog">
+  <meta property="og:title" content="Dora: Implementing a JIT-compiler with Rust">
+  <meta property="og:description" content="I am writing Dora, a simple JIT-compiler with Rust. Dora is both the name of the custom programming language and of the JIT-compiler. After some time working on it, I want to write about the experiences I made. I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.
+Architecture Link to heading The architecture is pretty simple: dora hello.dora parses the given input file into an Abstract Syntax Tree (AST). After parsing, the whole AST is semantically checked, if this succeeds execution starts with the main function.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="blog">
+    <meta property="article:published_time" content="2017-09-12T08:34:34+01:00">
+    <meta property="article:modified_time" content="2017-09-12T08:34:34+01:00">
+
+
+
+
 <link rel="canonical" href="https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/">
 
 
-<script type="text/javascript">
-    var baseURL = 'https:\/\/dinfuehr.github.io\/';
-    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
-    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
-        window.location.protocol = 'https:';
-    }
-</script>
+<link rel="preload" href="/fonts/fa-brands-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+
+
+  
+  
+  <link rel="stylesheet" href="/css/coder.min.c8e4eea149ae1dc7c61ba9b0781793711a4e657f7e07a4413f9abc46d52dffc4.css" integrity="sha256-yOTuoUmuHcfGG6mweBeTcRpOZX9&#43;B6RBP5q8RtUt/8Q=" crossorigin="anonymous" media="screen" />
 
 
 
@@ -34,23 +66,24 @@
 
 
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Ubuntu+Mono:400,400i,700,700i|Raleway:500">
 
-
-
-    <link rel="stylesheet" href="/css/reset.css">
-    <link rel="stylesheet" href="/css/pygments.css">
-    <link rel="stylesheet" href="/css/main.css">
-    
+ 
 
 
 
 
-<link rel="shortcut icon"
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" sizes="any">
+<link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16">
 
-    href="/img/favicon.ico"
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
 
->
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
 
 
 
@@ -60,110 +93,121 @@
 </head>
 
 
-<body lang="">
-
-<section class="header">
-    <div class="container">
-        <div class="content">
-            
-            <a href="/"><div class="name">Dominik Inführ</div></a>
-            <nav>
-                <ul>
-                    <a href="/blog/"><li>Blog</li></a>
-                    <a href="/about/"><li>About</li></a>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</section>
-
-<section class="icons">
-    <div class="container">
-        <div class="content">
-
-        
-            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
-        
-
-        
-            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
-        
-
-        
-
-        
-            <a href="mailto:dominik.infuehr@gmail.com"><img class="icon" src="/img/email.svg" alt="email" /></a>
-        
-
-        
-            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
-        
-        </div>
-    </div>
-</section>
 
 
-<section class="main post non-narrow zero-top-spacing">
-    <div class="container">
-        <div class="content">
-            <div class="front-matter">
-                <div class="title-container">
-                    <div class="page-heading">
-
-    Dora: Implementing a JIT-compiler with Rust
-
+<body class="preload-transitions colorscheme-light">
+  
+<div class="float-container">
+    <a id="dark-mode-toggle" class="colorscheme-toggle">
+        <i class="fa-solid fa-adjust fa-fw" aria-hidden="true"></i>
+    </a>
 </div>
 
-                    <div class="initials"><a href="https://dinfuehr.github.io/"></a></div>
-                </div>
-                <div class="meta">
-                    <div class="date" title="Tue Sep 12 2017 08:34:34 &#43;0100">Sep 12, 2017</div>
-                    <div class="reading-time"><div class="middot"></div>15 minutes read</div>
-                </div>
-            </div>
-            <div class="markdown">
-                
 
-<p>I am writing <a href="https://github.com/dinfuehr/dora">Dora</a>, a simple <a href="https://en.wikipedia.org/wiki/Just-in-time_compilation">JIT-compiler</a> with Rust.
+  <main class="wrapper">
+    <nav class="navigation">
+  <section class="container">
+    
+    <a class="navigation-title" href="https://dinfuehr.github.io/">
+      Dominik&#39;s Blog
+    </a>
+    
+    
+      <input type="checkbox" id="menu-toggle" />
+      <label class="menu-button float-right" for="menu-toggle">
+        <i class="fa-solid fa-bars fa-fw" aria-hidden="true"></i>
+      </label>
+      <ul class="navigation-list">
+        
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/blog/">Blog</a>
+            </li>
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/about/">About</a>
+            </li>
+          
+        
+        
+      </ul>
+    
+  </section>
+</nav>
+
+
+    <div class="content">
+      
+  <section class="container post">
+    <article>
+      <header>
+        <div class="post-title">
+          <h1 class="title">
+            <a class="title-link" href="https://dinfuehr.github.io/blog/dora-implementing-a-jit-compiler-with-rust/">
+              Dora: Implementing a JIT-compiler with Rust
+            </a>
+          </h1>
+        </div>
+        <div class="post-meta">
+          <div class="date">
+            <span class="posted-on">
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              <time datetime="2017-09-12T08:34:34&#43;01:00">
+                September 12, 2017
+              </time>
+            </span>
+            <span class="reading-time">
+              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              15-minute read
+            </span>
+          </div>
+          
+          
+          
+        </div>
+      </header>
+
+      <div class="post-content">
+        
+        <p>I am writing <a href="https://github.com/dinfuehr/dora"  class="external-link" target="_blank" rel="noopener">Dora</a>, a simple <a href="https://en.wikipedia.org/wiki/Just-in-time_compilation"  class="external-link" target="_blank" rel="noopener">JIT-compiler</a> with Rust.
 Dora is both the name of the custom programming language and of the JIT-compiler.
 After some time working on it, I want to write about the experiences I made.
 I started this project to get a better understanding of the low-level implementation details of a JIT-Compiler.</p>
-
-<h3 id="architecture">Architecture</h3>
-
-<p>The architecture is pretty simple: <code>dora hello.dora</code> parses the given input file into an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract Syntax Tree (AST)</a>. After parsing, the whole AST is semantically checked, if this succeeds execution starts with the <code>main</code> function.</p>
-
-<p>To execute <code>main</code>, machine-code is generated for that function by the baseline compiler by <a href="https://github.com/dinfuehr/dora/blob/master/src/baseline/codegen.rs">traversing</a> the AST nodes of the function.
+<h3 id="architecture">
+  Architecture
+  <a class="heading-link" href="#architecture">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
+<p>The architecture is pretty simple: <code>dora hello.dora</code> parses the given input file into an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree"  class="external-link" target="_blank" rel="noopener">Abstract Syntax Tree (AST)</a>. After parsing, the whole AST is semantically checked, if this succeeds execution starts with the <code>main</code> function.</p>
+<p>To execute <code>main</code>, machine-code is generated for that function by the baseline compiler by <a href="https://github.com/dinfuehr/dora/blob/master/src/baseline/codegen.rs"  class="external-link" target="_blank" rel="noopener">traversing</a> the AST nodes of the function.
 The function is traversed twice, first to generate information (mostly about the stack frame), the second traversal then generates the machine code.</p>
-
-<p>The baseline compiler is a method-based compiler and not a <a href="https://en.wikipedia.org/wiki/Tracing_just-in-time_compilation">tracing JIT</a> like for example <a href="http://luajit.org/">LuaJIT</a>.
+<p>The baseline compiler is a method-based compiler and not a <a href="https://en.wikipedia.org/wiki/Tracing_just-in-time_compilation"  class="external-link" target="_blank" rel="noopener">tracing JIT</a> like for example <a href="http://luajit.org/"  class="external-link" target="_blank" rel="noopener">LuaJIT</a>.
 The purpose of the baseline compiler in Dora is to generate code as fast as possible, not to generate the most efficient code.
 The sooner it finishes code generation, the sooner execution can start.</p>
-
 <p>Many VMs like the OpenJDK or V8 pair the baseline compiler (and/or interpreter) with one or more optimizing compilers that compile functions to more efficient machine-code if it detects a function to be hot.
 The optimizing compiler needs longer to compile a given function, but generates more optimized machine-code.
 This is acceptable since not all code gets compiled by the optimizing compiler but only hot code/functions.
 Dora doesn&rsquo;t have an optimizing compiler at the moment, but I have plans to implement one.</p>
-
-<h3 id="compilation">Compilation</h3>
-
-<p>The baseline compiler uses a <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/masm/mod.rs#L30">MacroAssembler</a> to generate machine code.
+<h3 id="compilation">
+  Compilation
+  <a class="heading-link" href="#compilation">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
+<p>The baseline compiler uses a <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/masm/mod.rs#L30"  class="external-link" target="_blank" rel="noopener">MacroAssembler</a> to generate machine code.
 All differences between different Instruction Set Architectures (ISAs) are handled by the MacroAssembler.
 Dora can generate machine-code for x86_64 and  AArch64.
 Adding other ISAs should be possible without touching the baseline compiler.</p>
-
 <p>Implementing the second ISA certainly helped making the architecture cleaner and even unveiled bugs I didn&rsquo;t notice on x86_64.
-It was also pretty interesting to implement instruction encoding, both for <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/x64/asm.rs">x86_64</a> and <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/arm64/asm.rs">AArch64</a>.
-I didn&rsquo;t implement instruction decoding myself, for this purpose I used the <a href="http://www.capstone-engine.org/">capstone</a> library.
+It was also pretty interesting to implement instruction encoding, both for <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/x64/asm.rs"  class="external-link" target="_blank" rel="noopener">x86_64</a> and <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/src/cpu/arm64/asm.rs"  class="external-link" target="_blank" rel="noopener">AArch64</a>.
+I didn&rsquo;t implement instruction decoding myself, for this purpose I used the <a href="http://www.capstone-engine.org/"  class="external-link" target="_blank" rel="noopener">capstone</a> library.
 The generated machine-code can be emitted with <code>dora --emit-asm=all hello-world.dora</code>.
 A nice feature of the MacroAssembler is that comments can be added to the generated instructions.
 When disassembling the comments are printed along the disassembled machine instructions:</p>
-
-<pre><code>fn main() 0x7f33bab6d010
+<pre tabindex="0"><code>fn main() 0x7f33bab6d010
   0x7f33bab6d010: pushq		%rbp
   0x7f33bab6d011: movq		%rsp, %rbp
   0x7f33bab6d014: subq		$0x10, %rsp
@@ -182,48 +226,39 @@ When disassembling the comments are printed along the disassembled machine instr
   0x7f33bab6d030: addq		$0x10, %rsp
   0x7f33bab6d034: popq		%rbp
   0x7f33bab6d035: retq
-</code></pre>
-
-<p>There already exists a <a href="https://github.com/ebfe/rust-capstone">Rust wrapper</a> for the capstone libary.
+</code></pre><p>There already exists a <a href="https://github.com/ebfe/rust-capstone"  class="external-link" target="_blank" rel="noopener">Rust wrapper</a> for the capstone libary.
 Although the README states that the bindings are incomplete, the wrapper supported all the features I need.</p>
-
-<h3 id="the-dora-programming-language">The Dora programming language</h3>
-
+<h3 id="the-dora-programming-language">
+  The Dora programming language
+  <a class="heading-link" href="#the-dora-programming-language">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>Here is a simple Hello world program:</p>
-
-<pre><code>fun main() {
-    println(&quot;Hello World&quot;);
+<pre tabindex="0"><code>fun main() {
+    println(&#34;Hello World&#34;);
 }
-</code></pre>
-
-<p>Dora is a custom-language with similarities to languages like Java, Kotlin and Rust (for Rust it is only syntactical).
+</code></pre><p>Dora is a custom-language with similarities to languages like Java, Kotlin and Rust (for Rust it is only syntactical).
 Most importantly: Dora is statically-typed and garbage collected.
 Dora is still missing a lot, I planned to add more but writing a JIT is more than enough work.
 Instead of adding more syntactic sugar, I preferred to implement features that were more interesting to implement in the JIT.</p>
-
 <p>Nevertheless Dora alredy has quite a large number of features.
 This are the supported primitive types: <code>bool</code>, <code>byte</code>, <code>char</code>, <code>int</code>, <code>long</code>, <code>float</code>, <code>double</code>.
 It is also possible to define your own classes (with inheritance) just like Java/Kotlin/etc.</p>
-
-<pre><code>class Point(let x: int, let y: int)
+<pre tabindex="0"><code>class Point(let x: int, let y: int)
 
 // generic classes are supported too
 class Wrapper&lt;T&gt;(let obj: T)
-</code></pre>
-
-<p>Dora also supports variable-sized objects like Arrays with the <code>Array&lt;T&gt;</code> class and Strings with <code>Str</code>.
+</code></pre><p>Dora also supports variable-sized objects like Arrays with the <code>Array&lt;T&gt;</code> class and Strings with <code>Str</code>.
 These object types need to be treated differently both when allocating and collecting compared to fixed-size objects/classes like <code>Point</code> in the example above (their size depends on the <code>length</code>-field).</p>
-
 <p>What&rsquo;s also important to note for generic classes: Unlike Java, generic types can also be primitive types.
 So <code>Wrapper&lt;int&gt;</code> and <code>Wrapper&lt;bool&gt;</code> are both valid and are internally represented as two different classes.</p>
-
 <p>Since a few a weeks Dora also supports generic trait boundaries, such that designing a fast generic hashing key-value mapping implementation should be possible.
-I didn&rsquo;t yet write a generic <code>HashMap</code> but you can look into the implementation of <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/tests/whiteboard/simple-map.dora"><code>SlowMap</code></a> in the testsuite which should show that this should be feasibles.</p>
-
+I didn&rsquo;t yet write a generic <code>HashMap</code> but you can look into the implementation of <a href="https://github.com/dinfuehr/dora/blob/b55ae0b26909114532010ed3558f048327b9bb8b/tests/whiteboard/simple-map.dora"  class="external-link" target="_blank" rel="noopener"><code>SlowMap</code></a> in the testsuite which should show that this should be feasibles.</p>
 <p>But why didn&rsquo;t I use an already existing language?
 The main reason: I didn&rsquo;t intend to implement that many features into the language.
 All I wanted was a simple, staticaly typed language which I could easily generate machine code for.</p>
-
 <p>Instead of using an already existing language, I could&rsquo;ve also used an intermediate representation or bytecode like WASM or Java Bytecode.
 This would&rsquo;ve meant that I could get a lot of benchmarks for my JIT and I could easily compare results to other VMs.
 To be honest, today this sounds a lot more feasible than it was back then.
@@ -231,39 +266,35 @@ There are so many features you need to implement to run any non-trivial benchmar
 A big obstacle in writing complex benchmarks for Dora is the missing standard library: This could&rsquo;ve been solved by using e.g. Classpath or OpenJDK.
 So this might have been easier, but still it was certainly also interesting to &ldquo;design&rdquo; a programming language.
 If I think about it, WASM is probably not ideal right now since I also wanted to look into garbage collection.</p>
-
 <p>Another feature Dora supports are Exceptions.
 Exceptions can be thrown with <code>throw</code>, while <code>do</code>, <code>catch</code> and <code>finally</code> are used to catch exceptions.
-Doras exception handling is similar to <a href="https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html">Swift</a>, all functions that can throw exceptions need to be marked with <code>throws</code>:</p>
-
-<pre><code>fun foo() throws { /* ... */ }
-</code></pre>
-
-<p>Functions that can throw need to be invoked like <code>try foo()</code> or <code>try obj.bar()</code>, where <code>try</code> is just syntactic sugar that signals a potentially throwing invocation.
+Doras exception handling is similar to <a href="https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html"  class="external-link" target="_blank" rel="noopener">Swift</a>, all functions that can throw exceptions need to be marked with <code>throws</code>:</p>
+<pre tabindex="0"><code>fun foo() throws { /* ... */ }
+</code></pre><p>Functions that can throw need to be invoked like <code>try foo()</code> or <code>try obj.bar()</code>, where <code>try</code> is just syntactic sugar that signals a potentially throwing invocation.
 I like this syntax because it makes it obvious in the caller that an exception could occur.</p>
-
 <p>For runtime errors like failed assertions, the program is halted and the current stack trace is printed.
 Although exceptions and stack traces sound quite unspectacular, I was quite happy when this worked for the first time.</p>
-
 <p>Dora also supports inheritance for classes.
-It has <a href="https://github.com/dinfuehr/dora/blob/master/tests/pctor1.dora">primary</a> and <a href="https://github.com/dinfuehr/dora/blob/master/tests/ctor3.dora">secondary</a> constructors like <a href="https://kotlinlang.org/docs/reference/classes.html">Kotlin</a>.
-The keyword <a href="https://github.com/dinfuehr/dora/blob/master/tests/is1.dora"><code>is</code></a> is similar to Javas <code>instanceof</code>, while <a href="https://github.com/dinfuehr/dora/blob/master/tests/as1.dora"><code>as</code></a> is used for the checked cast (in Java you would write <code>(SomeClass) obj</code> for that).
-I implemented this check as described in this great <a href="https://www.researchgate.net/publication/221552851_Fast_subtype_checking_in_the_HotSpot_JVM">paper</a> from Cliff Click and John Rose.
+It has <a href="https://github.com/dinfuehr/dora/blob/master/tests/pctor1.dora"  class="external-link" target="_blank" rel="noopener">primary</a> and <a href="https://github.com/dinfuehr/dora/blob/master/tests/ctor3.dora"  class="external-link" target="_blank" rel="noopener">secondary</a> constructors like <a href="https://kotlinlang.org/docs/reference/classes.html"  class="external-link" target="_blank" rel="noopener">Kotlin</a>.
+The keyword <a href="https://github.com/dinfuehr/dora/blob/master/tests/is1.dora"  class="external-link" target="_blank" rel="noopener"><code>is</code></a> is similar to Javas <code>instanceof</code>, while <a href="https://github.com/dinfuehr/dora/blob/master/tests/as1.dora"  class="external-link" target="_blank" rel="noopener"><code>as</code></a> is used for the checked cast (in Java you would write <code>(SomeClass) obj</code> for that).
+I implemented this check as described in this great <a href="https://www.researchgate.net/publication/221552851_Fast_subtype_checking_in_the_HotSpot_JVM"  class="external-link" target="_blank" rel="noopener">paper</a> from Cliff Click and John Rose.
 Unfortunately I haven&rsquo;t benchmarked my implementation of the <em>fast subtype check</em> yet.
 My implementation is a bit easier since Dora doesn&rsquo;t have interfaces or dynamically loaded classes.</p>
-
-<h3 id="garbage-collection">Garbage Collection</h3>
-
-<p>Dora has an exact, tracing <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Garbage Collector</a>.
+<h3 id="garbage-collection">
+  Garbage Collection
+  <a class="heading-link" href="#garbage-collection">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
+<p>Dora has an exact, tracing <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection"  class="external-link" target="_blank" rel="noopener">Garbage Collector</a>.
 For a tracing GC to work, it is essential to determine the root set.
 The root set is the initial set of objects for object graph traversal.
 The set usually consists of global variables and/or local variables.</p>
-
 <p>While it is quite easy to add global variables to the root set, this is much harder for local variables.
 For this we need working stack unwinding, Dora needs to examine the active functions on the stack.
 Although we then know all local variables in these functions, there is one more complication:</p>
-
-<pre><code class="language-dora">fun foo() {
+<pre tabindex="0"><code class="language-dora" data-lang="dora">fun foo() {
     let x = A(); // create object of class A
     bar1(); // GC Point 1
 
@@ -272,20 +303,16 @@ Although we then know all local variables in these functions, there is one more 
 
     // use x and y
 }
-</code></pre>
-
-<p>For determining local variables we also need to know where in a function we currently are.
+</code></pre><p>For determining local variables we also need to know where in a function we currently are.
 The Dora function <code>foo</code> has two local variables, but when invoking <code>bar1</code> only <code>x</code> is initialized.
 At this point there is already space reservered for <code>y</code> but the memory is still uninitialized and contains some random value.
 <code>y</code> shouldn&rsquo;t be part of the root set at that point.
 When invoking <code>bar2</code> both <code>x</code> and <code>y</code> are initialized and therefore both belong to the root set.</p>
-
 <p>The baseline compiler keeps track of initialized local variables and emits so called GC points for each function invocation.
 The GC point stores which local variables are initialized.
 Now there is enough information to collect all local variables from the stack.
 To be more precise Dora not only keeps track of local variables but also of temporary values, fortunately temporary values can just be treated like local variables.</p>
-
-<p>My first implementation of the GC was a <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Na.C3.AFve_mark-and-sweep">Mark-and-Sweep</a> collector which simply used <code>malloc</code> for object allocation and <code>free</code> for object deallocation.
+<p>My first implementation of the GC was a <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Na.C3.AFve_mark-and-sweep"  class="external-link" target="_blank" rel="noopener">Mark-and-Sweep</a> collector which simply used <code>malloc</code> for object allocation and <code>free</code> for object deallocation.
 The marking phase marked every object that was reachable. The sweeping phase afterwards invoked <code>free</code> for every object that wasn&rsquo;t marked.
 The problem with this implementation was to keep track of all allocated objects: the whole heap was a single linked-list.
 Each object had an additional word to store the pointer to the next object.
@@ -293,123 +320,112 @@ This increased object sizes but also made traversing the heap quite cache-ineffi
 <code>malloc</code> &amp; <code>free</code> are also quite expensive.
 I don&rsquo;t want to say they are slow, they are not.
 But within a managed heap we can do better.</p>
-
-<p>That&rsquo;s why I wrote a simple <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Copying_vs._mark-and-sweep_vs._mark-and-don.27t-sweep">Copy Collector</a> using the <a href="https://en.wikipedia.org/wiki/Cheney%27s_algorithm">Cheney-Algorithm</a>.
+<p>That&rsquo;s why I wrote a simple <a href="https://en.wikipedia.org/wiki/Tracing_garbage_collection#Copying_vs._mark-and-sweep_vs._mark-and-don.27t-sweep"  class="external-link" target="_blank" rel="noopener">Copy Collector</a> using the <a href="https://en.wikipedia.org/wiki/Cheney%27s_algorithm"  class="external-link" target="_blank" rel="noopener">Cheney-Algorithm</a>.
 A copy collector divides a heap into two equally-sized spaces: the <em>from</em> and <em>to</em> space.
 Objects are always allocated in the <em>from</em> space, by increasing a pointer that points to the next free memory by the object size.
 As soon as this pointer reaches the end of the space, all surviving objects are copied from the <em>from</em> space to the <em>to</em> space.
 All live objects are now in the <em>to</em> space, the <em>from</em> space now only contains garbage.
 The spaces then switch roles.
 Deallocation of unreachable/dead objects is a no-op.</p>
-
 <p>I liked that I could implement this collector in less than 200 lines of code and it is also quite performant for the amount of work that went into it.
-The <a href="http://gchandbook.org/">GC Handbook</a> recommends this algorithm if your goal is just to have a simple and working GC with good performance.
+The <a href="http://gchandbook.org/"  class="external-link" target="_blank" rel="noopener">GC Handbook</a> recommends this algorithm if your goal is just to have a simple and working GC with good performance.
 The obvious disadvantage of this collector type is that 50% of the heap are always unusable.
 Copying live objects can be quite expensive too if a lot of objects survive, that also means potentially long pause times.
 These disadvantages also explain why a copy collector is quite common in the young generation of many garbage collectors.
 For one the young generation is only a (small?) part of the heap, so not that much memory is unusable.
 Furthermore if a program fulfills the generational hypothesis (that means most objects die young), copying should also be quite cheap.</p>
-
 <p>For me there was another property of copy collectors that was really important: moving objects.
 Since the address of an object can change, global variables and local variables in the root set need to be updated to point to the new address of the object while collecting garbage.
 My initial Mark-and-Sweep-GC didn&rsquo;t move any object.
 This gave me more confidence that my root set was actually correct and updating references was working.</p>
-
 <p>I added a flag <code>--gc-stress</code> which forces a collection at every single allocation.
 This is horribly inefficient but was invaluable for testing my implementation.
 You might also force a garbage collection by invoking <code>forceCollect()</code> from Dora.</p>
-
 <p>Another interesting problem for the GC are references into the heap from native code.
 Imagine a native function like this:</p>
-
-<pre><code class="language-rust">fn some_native_function() {
-  let obj1: *const Obj = gc.allocate_object();
-  let obj2: *const Obj = gc.allocate_object();
-
-  // do something with obj1 and obj2
-}
-</code></pre>
-
-<p>The second object allocation might cause a garbage collection.
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">some_native_function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="n">obj1</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">Obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gc</span><span class="p">.</span><span class="n">allocate_object</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="n">obj2</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">Obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gc</span><span class="p">.</span><span class="n">allocate_object</span><span class="p">();</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// do something with obj1 and obj2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>The second object allocation might cause a garbage collection.
 If this is the case the first object is not part of the root set since only a local variable in native code references this object.
 Dora doesn&rsquo;t have any knowledge about stack frames and local variables of native Rust code and will never have.
 The object wouldn&rsquo;t survive the collection, but even if it would, <code>obj</code> would point to the wrong address (the copy collector moves all surviving objects).
 Somehow we need to add this object to the root set.
 To solve this I added a data structure <code>HandleMemory</code> and a type <code>Rooted&lt;T&gt;</code> that stores an indirect pointer to an object.
 The native function from above now looks like this:</p>
-
-<pre><code class="language-rust">fn some_native_function() {
-  let obj1: Rooted&lt;Obj&gt; = root(gc.allocate_object());
-  let obj2: Rooted&lt;Obj&gt; = root(gc.allocate_object());
-
-  // do something with obj1 and obj2
-}
-</code></pre>
-
-<p><code>HandleMemory</code> is used to store <em>direct</em> pointers into the heap, all entries are automatically part of the root set.
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="line"><span class="cl"><span class="k">fn</span> <span class="nf">some_native_function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="n">obj1</span>: <span class="nc">Rooted</span><span class="o">&lt;</span><span class="n">Obj</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">root</span><span class="p">(</span><span class="n">gc</span><span class="p">.</span><span class="n">allocate_object</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="n">obj2</span>: <span class="nc">Rooted</span><span class="o">&lt;</span><span class="n">Obj</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">root</span><span class="p">(</span><span class="n">gc</span><span class="p">.</span><span class="n">allocate_object</span><span class="p">());</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c1">// do something with obj1 and obj2
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p><code>HandleMemory</code> is used to store <em>direct</em> pointers into the heap, all entries are automatically part of the root set.
 <code>Rooted&lt;Obj&gt;</code> is a pointer to an entry in the handle memory and therefore an <em>indirect</em> pointer.
 The function <code>root</code> stores the <em>direct</em> pointer it gets from the object allocation in <code>HandleMemory</code> and returns an indirect pointer for this entry.
 This solves heap references from local variables in native code into the heap.
 <code>HandleMemory</code> is cleaned up when the native code returns to Dora code.
 This makes it invalid to retain these indirect pointers by storing it in some global variable.
 If I should have a need for this later, I would need to add some kind of <em>global references</em>.</p>
-
 <p>Actually the whole integration between the GC or JIT and native code is quite interesting.
 Right now I am working again to improve the GC.
 My first goal here is to write a generational GC called <em>Swiper</em>.
 This should make GC pauses way shorter than with the current Copy GC.
 I also have other improvements in mind: incremental marking, Thread-Local Allocation Buffer, etc.</p>
-
-<h3 id="benchmarks">Benchmarks</h3>
-
+<h3 id="benchmarks">
+  Benchmarks
+  <a class="heading-link" href="#benchmarks">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>I can&rsquo;t finish writing this blog without showing some benchmark results.
-There are at least two microbenchmarks Dora is able to run right now from the <a href="http://benchmarksgame.alioth.debian.org/">Language Benchmarks Game</a>: <a href="https://github.com/dinfuehr/dora/tree/master/bench/fannkuchredux">fannkuch-redux</a> and <a href="https://github.com/dinfuehr/dora/tree/master/bench/binarytrees">binarytrees</a>.
+There are at least two microbenchmarks Dora is able to run right now from the <a href="http://benchmarksgame.alioth.debian.org/"  class="external-link" target="_blank" rel="noopener">Language Benchmarks Game</a>: <a href="https://github.com/dinfuehr/dora/tree/master/bench/fannkuchredux"  class="external-link" target="_blank" rel="noopener">fannkuch-redux</a> and <a href="https://github.com/dinfuehr/dora/tree/master/bench/binarytrees"  class="external-link" target="_blank" rel="noopener">binarytrees</a>.
 I chose the fastest single-threaded Java implementation (dora does not support multi-threading yet) of these benchmarks and translated them to Dora.</p>
-
-<p><img src="/images/dora-bench-game.png" alt="Benchmark results" /></p>
-
+<p><img src="/images/dora-bench-game.png" alt="Benchmark results"></p>
 <p>For <code>fannkuch-redux</code> Dora is about 4.7 times (47s to 224s) slower than the Java equivalent running on OpenJDK (version 1.8.0_144), the benchmark results for <code>binarytrees</code> are worse: Dora is 7.2x slower (36s instead of 5s).
 This is easily explained: <code>binarytrees</code> stresses the GC and the current implementation isn&rsquo;t really the most efficient.
 We will later look into this benchmark in more detail.</p>
-
 <p>Nevertheless I am satisfied with these numbers.
 Neither did I cheat nor am I expecting these numbers to get significantly worse when adding more features.</p>
-
 <p>It should be clear but just to make sure: Please don&rsquo;t draw any conclusions on Rusts performance from these benchmarks.
 All time is spent in the generated machine-code, the code generator for Dora is at fault not Rust.</p>
-
-<h3 id="dora-with-perf">Dora with perf</h3>
-
-<p>We can look deeper into the <code>binarytrees</code> benchmark and run the program with <a href="https://perf.wiki.kernel.org/index.php/Main_Page">perf</a>.
+<h3 id="dora-with-perf">
+  Dora with perf
+  <a class="heading-link" href="#dora-with-perf">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
+<p>We can look deeper into the <code>binarytrees</code> benchmark and run the program with <a href="https://perf.wiki.kernel.org/index.php/Main_Page"  class="external-link" target="_blank" rel="noopener">perf</a>.
 perf can record stacktraces using sampling.
-Thanks to <a href="http://www.brendangregg.com/">Brendan Gregg</a> we can create <a href="https://github.com/brendangregg/FlameGraph">flame graphs</a> as interactive SVGs from the collected stacktraces, which is pretty cool:</p>
-
+Thanks to <a href="http://www.brendangregg.com/"  class="external-link" target="_blank" rel="noopener">Brendan Gregg</a> we can create <a href="https://github.com/brendangregg/FlameGraph"  class="external-link" target="_blank" rel="noopener">flame graphs</a> as interactive SVGs from the collected stacktraces, which is pretty cool:</p>
 <p><a href="/images/perf-binarytrees.svg"><img src="/images/perf-binarytrees.svg" alt="binarytrees flame graph"></a></p>
-
 <p>What&rsquo;s also pretty nice is that perf shows both user and kernel stack traces.
 <code>perf</code> even emits the function names for the jitted functions, which was actually pretty easy to achieve.
-All you need to do is to <a href="https://github.com/dinfuehr/dora/blob/master/src/os/perf.rs">create</a> a file <code>/tmp/perf-&lt;pid&gt;.map</code> that consists of lines with this format:</p>
-
-<pre><code>&lt;code address start&gt; &lt;length&gt; &lt;function name&gt;
-</code></pre>
-
-<p>Dora just needs to emit such lines for every jitted function.</p>
-
+All you need to do is to <a href="https://github.com/dinfuehr/dora/blob/master/src/os/perf.rs"  class="external-link" target="_blank" rel="noopener">create</a> a file <code>/tmp/perf-&lt;pid&gt;.map</code> that consists of lines with this format:</p>
+<pre tabindex="0"><code>&lt;code address start&gt; &lt;length&gt; &lt;function name&gt;
+</code></pre><p>Dora just needs to emit such lines for every jitted function.</p>
 <p>What can we conclude from this performance analysis?
 According to the measurements, mutex locking &amp; unlocking takes a large part of the runtime (~25%).
 Right now, allocation happens in a mutex (even though Dora is still single-threaded).
 I plan to get rid of this with my new generational collector, this should give a nice speedup.
 But for now I will leave it as it is.</p>
-
 <p>What also shows up in the profile are the functions <code>start_native_call</code> and <code>finish_native_call</code> (8-9% of the runtime).
 Calling a native function is more expensive than calling a <em>normal</em> Dora function.
 <code>start_native_call</code> and <code>finish_native_call</code> do the necessary setup- and cleanup-work for calling a native function.
 Object allocation is the only native function regularly invoked in this benchmark.
 By inlining the object allocation, we can get rid of the native function calling overhead.
 I need working Thread-Local Allocation Buffers (TLABs) in my GC for that, Swiper should enable that optimization.</p>
-
-<h3 id="optimizing-compiler">Optimizing Compiler</h3>
-
+<h3 id="optimizing-compiler">
+  Optimizing Compiler
+  <a class="heading-link" href="#optimizing-compiler">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>Another feature I want to implement is an optimizing compiler for Dora.
 This would probably improve almost every benchmark.
 I think that Dora is already expressive enough to write the optimizing compiler in Dora instead of Rust.
@@ -418,12 +434,16 @@ The baseline compiler emits machine code from the AST, which are quite a lot of 
 I suppose it would be quite cumbersome to pass the Rust AST to Dora.
 Therefore I would first emit byte code in Rust, and then simply pass the byte code array to Dora.
 This should be way easier.
-I would then have a <a href="http://darksi.de/d.sea-of-nodes/">&ldquo;sea of nodes&rdquo;</a> IR in Dora on which I could do all my optimizations.
+I would then have a <a href="http://darksi.de/d.sea-of-nodes/"  class="external-link" target="_blank" rel="noopener">&ldquo;sea of nodes&rdquo;</a> IR in Dora on which I could do all my optimizations.
 That said this is probably going to take some time.
 Nevertheless I am already looking forward to implement it.</p>
-
-<h3 id="using-rust">Using Rust</h3>
-
+<h3 id="using-rust">
+  Using Rust
+  <a class="heading-link" href="#using-rust">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>A few words on using Rust: I started the project to try out Rust on a non-trivial project.
 I knew some Rust but hadn&rsquo;t used it on a project before.
 Both <code>cargo</code> and <code>rustup</code> are great tools.
@@ -431,34 +451,138 @@ They also work on my Odroid C2 where I implemented the support for AArch64.
 Cross-compiling became pretty easy, although I just used it for making sure Dora still builds on AArch64
 (I never bothered to try to get it to link).
 Cross-building is as simple as <code>cargo build --target=aarch64-unknown-linux-gnu</code>.</p>
-
 <p>What was especially hard for me to get used to was exclusive mutability, not really borrowing or ownership.
 I am perfectly aware that this feature is the reason I don&rsquo;t have to worry about iterator invalidation or data races in safe rust code but still it takes some time getting used to.
 The good thing about that though, it forces you to think about organizing your data structures more thoroughly.</p>
-
-<h3 id="conclusion">Conclusion</h3>
-
+<h3 id="conclusion">
+  Conclusion
+  <a class="heading-link" href="#conclusion">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>Implementing both a programming language and JIT is a LOT of work.
 Nevertheless working on it was and still is both fun and educational and there will always be so much stuff that would be cool to implement or to improve.
-The source is on <a href="https://github.com/dinfuehr/dora">Github</a>, contributions are welcome.</p>
+The source is on <a href="https://github.com/dinfuehr/dora"  class="external-link" target="_blank" rel="noopener">Github</a>, contributions are welcome.</p>
 
-                <br>
-                <p><a href="/blog/">Back to posts</a></p>
-            </div>
-            <br>
-            <div class="disqus">
-                
-            </div>
-        </div>
+      </div>
+
+
+      <footer>
+        
+
+
+        
+<ul>
+  
+    
+      <li>
+        <a href="https://github.com/dinfuehr/" aria-label="Github"   >
+          <i class="fa fa-github" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
+          <i class="fa fa-twitter" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
+          <i class="fa fa-envelope" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
+          <i class="fa fa-rss" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+</ul>
+
+        
+        
+        
+        
+        
+        
+        
+      </footer>
+    </article>
+
+    
+  </section>
+
     </div>
-</section>
+
+    <footer class="footer">
+  <section class="container">
+    ©
+    
+    2025
+     Dominik Inführ 
+    ·
+    
+    Powered by <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> & <a href="https://github.com/luizdepra/hugo-coder/" target="_blank" rel="noopener">Coder</a>.
+    
+  </section>
+</footer>
+
+  </main>
+
+  
+
+  
+  
+  <script src="/js/coder.min.6ae284be93d2d19dad1f02b0039508d9aab3180a12a06dcc71b0b0ef7825a317.js" integrity="sha256-auKEvpPS0Z2tHwKwA5UI2aqzGAoSoG3McbCw73gloxc="></script>
+  
+
+  
+
+  
 
 
+  
 
+  
 
+  
 
+  
 
+  
 
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
 </body>
 </html>
-

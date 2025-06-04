@@ -1,32 +1,58 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html lang="en">
 
 <head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="chrome=1">
-<meta name="HandheldFriendly" content="True">
-<meta name="MobileOptimized" content="320">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="referrer" content="no-referrer">
-
-
-<base href="https://dinfuehr.github.io/">
-<title>
-
-
-     A first look into ZGC 
-
+  <title>
+  A first look into ZGC · Dominik&#39;s Blog
 </title>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+
+
+
+
+<meta name="author" content="Dominik Inführ">
+<meta name="description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
+It was mainly written by Per Liden.
+ZGC is similar to Shenandoah or Azul&rsquo;s C4 that focus on reducing pause-times while still compacting the heap.
+Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap.
+This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world.
+Only when the GC is finished, the application can be resumed.
+In GC literature the application is often called mutator, since from the GC&rsquo;s point of view the application mutates the heap.
+Depending on the size of the heap such a pause could take several seconds, which could be quite problematic for interactive applications.">
+<meta name="keywords" content="">
+
+
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="A first look into ZGC">
+  <meta name="twitter:description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK. It was mainly written by Per Liden. ZGC is similar to Shenandoah or Azul’s C4 that focus on reducing pause-times while still compacting the heap. Although I won’t give a full introduction here, “compacting the heap” just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world. Only when the GC is finished, the application can be resumed. In GC literature the application is often called mutator, since from the GC’s point of view the application mutates the heap. Depending on the size of the heap such a pause could take several seconds, which could be quite problematic for interactive applications.">
+
+<meta property="og:url" content="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
+  <meta property="og:site_name" content="Dominik&#39;s Blog">
+  <meta property="og:title" content="A first look into ZGC">
+  <meta property="og:description" content="ZGC is a new garbage collector recently open-sourced by Oracle for the OpenJDK. It was mainly written by Per Liden. ZGC is similar to Shenandoah or Azul’s C4 that focus on reducing pause-times while still compacting the heap. Although I won’t give a full introduction here, “compacting the heap” just means moving the still-alive objects to the start (or some other region) of the heap. This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as stopping the world. Only when the GC is finished, the application can be resumed. In GC literature the application is often called mutator, since from the GC’s point of view the application mutates the heap. Depending on the size of the heap such a pause could take several seconds, which could be quite problematic for interactive applications.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="blog">
+    <meta property="article:published_time" content="2018-01-03T20:33:37+02:00">
+    <meta property="article:modified_time" content="2018-01-03T20:33:37+02:00">
+
+
+
+
 <link rel="canonical" href="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
 
 
-<script type="text/javascript">
-    var baseURL = 'https:\/\/dinfuehr.github.io\/';
-    var host = baseURL.substring(0, baseURL.length - 1).replace(/\//g, '');
-    if ((host === window.location.host) && (window.location.protocol !== 'https:')) {
-        window.location.protocol = 'https:';
-    }
-</script>
+<link rel="preload" href="/fonts/fa-brands-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+
+
+  
+  
+  <link rel="stylesheet" href="/css/coder.min.c8e4eea149ae1dc7c61ba9b0781793711a4e657f7e07a4413f9abc46d52dffc4.css" integrity="sha256-yOTuoUmuHcfGG6mweBeTcRpOZX9&#43;B6RBP5q8RtUt/8Q=" crossorigin="anonymous" media="screen" />
 
 
 
@@ -34,23 +60,24 @@
 
 
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Ubuntu+Mono:400,400i,700,700i|Raleway:500">
 
-
-
-    <link rel="stylesheet" href="/css/reset.css">
-    <link rel="stylesheet" href="/css/pygments.css">
-    <link rel="stylesheet" href="/css/main.css">
-    
+ 
 
 
 
 
-<link rel="shortcut icon"
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" sizes="any">
+<link rel="icon" type="image/png" href="/images/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/images/favicon-16x16.png" sizes="16x16">
 
-    href="/img/favicon.ico"
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
 
->
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
 
 
 
@@ -60,137 +87,144 @@
 </head>
 
 
-<body lang="">
-
-<section class="header">
-    <div class="container">
-        <div class="content">
-            
-            <a href="/"><div class="name">Dominik Inführ</div></a>
-            <nav>
-                <ul>
-                    <a href="/blog/"><li>Blog</li></a>
-                    <a href="/about/"><li>About</li></a>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</section>
-
-<section class="icons">
-    <div class="container">
-        <div class="content">
-
-        
-            <a href="//github.com/dinfuehr" target="_blank"><img class="icon" src="/img/github.svg" alt="github" /></a>
-        
-
-        
-            <a href="//twitter.com/dinfuehr" target="_blank"><img class="icon" src="/img/twitter.svg" alt="twitter" /></a>
-        
-
-        
-
-        
-
-        
-
-        
-            <a href="mailto:dominik.infuehr@gmail.com"><img class="icon" src="/img/email.svg" alt="email" /></a>
-        
-
-        
-            <a href="https://dinfuehr.github.io/index.xml"><img class="icon" src="/img/rss.svg" alt="rss" /></a>
-        
-        </div>
-    </div>
-</section>
 
 
-<section class="main post non-narrow zero-top-spacing">
-    <div class="container">
-        <div class="content">
-            <div class="front-matter">
-                <div class="title-container">
-                    <div class="page-heading">
-
-    A first look into ZGC
-
+<body class="preload-transitions colorscheme-light">
+  
+<div class="float-container">
+    <a id="dark-mode-toggle" class="colorscheme-toggle">
+        <i class="fa-solid fa-adjust fa-fw" aria-hidden="true"></i>
+    </a>
 </div>
 
-                    <div class="initials"><a href="https://dinfuehr.github.io/"></a></div>
-                </div>
-                <div class="meta">
-                    <div class="date" title="Wed Jan 3 2018 20:33:37 &#43;0200">Jan 3, 2018</div>
-                    <div class="reading-time"><div class="middot"></div>13 minutes read</div>
-                </div>
-            </div>
-            <div class="markdown">
-                
 
-<p><a href="http://cr.openjdk.java.net/~pliden/zgc/">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
-It was mainly written by <a href="https://twitter.com/perliden">Per Liden</a>.
-ZGC is similar to <a href="https://wiki.openjdk.java.net/display/shenandoah/Main">Shenandoah</a> or Azul&rsquo;s C4 that focus on reducing pause-times while still <a href="https://en.wikipedia.org/wiki/Mark-compact_algorithm">compacting</a> the heap.
+  <main class="wrapper">
+    <nav class="navigation">
+  <section class="container">
+    
+    <a class="navigation-title" href="https://dinfuehr.github.io/">
+      Dominik&#39;s Blog
+    </a>
+    
+    
+      <input type="checkbox" id="menu-toggle" />
+      <label class="menu-button float-right" for="menu-toggle">
+        <i class="fa-solid fa-bars fa-fw" aria-hidden="true"></i>
+      </label>
+      <ul class="navigation-list">
+        
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/blog/">Blog</a>
+            </li>
+          
+            <li class="navigation-item">
+              <a class="navigation-link " href="/about/">About</a>
+            </li>
+          
+        
+        
+      </ul>
+    
+  </section>
+</nav>
+
+
+    <div class="content">
+      
+  <section class="container post">
+    <article>
+      <header>
+        <div class="post-title">
+          <h1 class="title">
+            <a class="title-link" href="https://dinfuehr.github.io/blog/a-first-look-into-zgc/">
+              A first look into ZGC
+            </a>
+          </h1>
+        </div>
+        <div class="post-meta">
+          <div class="date">
+            <span class="posted-on">
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              <time datetime="2018-01-03T20:33:37&#43;02:00">
+                January 3, 2018
+              </time>
+            </span>
+            <span class="reading-time">
+              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              13-minute read
+            </span>
+          </div>
+          
+          
+          
+        </div>
+      </header>
+
+      <div class="post-content">
+        
+        <p><a href="http://cr.openjdk.java.net/~pliden/zgc/"  class="external-link" target="_blank" rel="noopener">ZGC</a> is a new garbage collector recently open-sourced by Oracle for the OpenJDK.
+It was mainly written by <a href="https://twitter.com/perliden"  class="external-link" target="_blank" rel="noopener">Per Liden</a>.
+ZGC is similar to <a href="https://wiki.openjdk.java.net/display/shenandoah/Main"  class="external-link" target="_blank" rel="noopener">Shenandoah</a> or Azul&rsquo;s C4 that focus on reducing pause-times while still <a href="https://en.wikipedia.org/wiki/Mark-compact_algorithm"  class="external-link" target="_blank" rel="noopener">compacting</a> the heap.
 Although I won&rsquo;t give a full introduction here, &ldquo;compacting the heap&rdquo; just means moving the still-alive objects to the start (or some other region) of the heap.
 This helps to reduce fragmentation but usually this also means that the whole application (that includes all of its threads) needs to be halted while the GC does its magic, this is usually referred to as <em>stopping the world</em>.
 Only when the GC is finished, the application can be resumed.
 In GC literature the application is often called <em>mutator</em>, since from the GC&rsquo;s point of view the application mutates the heap.
 Depending on the size of the heap such a pause could take several seconds, which could be quite problematic for interactive applications.</p>
-
 <p>There are several ways to reduce pause times:</p>
-
 <ul>
 <li>The GC can employ multiple threads while compacting (<em>parallel</em> compaction).</li>
 <li>Compaction work can also be split across multiple pauses (<em>incremental</em> compaction).</li>
 <li>Compact the heap concurrently to the running application without stopping it (or just for a short time) (<em>concurrent</em> compaction).</li>
 <li>No compaction of the heap at all (an approach taken by e.g. Go&rsquo;s GC).</li>
 </ul>
-
 <p>ZGC uses concurrent compaction to keep pauses to a minimum, this is certainly not obvious to implement so I want to describe how this works.
 Why is this complicated?</p>
-
 <ul>
 <li>You need to copy an object to another memory address, at the same time another thread could read from or write into the old object.</li>
 <li>If copying succeeded there might still be arbitrary many references somewhere in the heap to the old object address that need to be updated to the new address.</li>
 </ul>
-
 <p>I should also mention that although concurrent compaction seems to be the best solution to reduce pause time of the alternatives given above, there are definitely some tradeoffs involved.
 So if you don&rsquo;t care about pause times, you might be better off using a GC that focuses on throughput instead.</p>
-
-<h3 id="gc-barriers">GC barriers</h3>
-
+<h3 id="gc-barriers">
+  GC barriers
+  <a class="heading-link" href="#gc-barriers">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>The key to understanding how ZGC does concurrent compaction is the <em>load barrier</em> (often called <em>read barrier</em> in GC literature).
-Although I have an <a href="#load-barrier">own section</a> about ZGC&rsquo;s load-barrier, I want to give a short overview since not all readers might be familiar with them.
+Although I have an <a href="#load-barrier" >own section</a> about ZGC&rsquo;s load-barrier, I want to give a short overview since not all readers might be familiar with them.
 If a GC has load-barriers, the GC needs to do some additional action when reading a reference from the heap.
 Basically in Java this happens every time you see some code like <code>obj.field</code>.
 A GC could also need a <em>write/store-barrier</em> for operations like <code>obj.field = value</code>.
 Both operations are special since they read from or write into the heap.
-The names are a bit confusing, but GC barriers are different from <a href="https://en.wikipedia.org/wiki/Memory_barrier">memory barriers</a> used in CPUs or compilers.</p>
-
+The names are a bit confusing, but GC barriers are different from <a href="https://en.wikipedia.org/wiki/Memory_barrier"  class="external-link" target="_blank" rel="noopener">memory barriers</a> used in CPUs or compilers.</p>
 <p>Both reading and writing in the heap is extremely common, so both GC-barriers need to be super efficient.
 That means just a few assembly instructions in the common case.
 Read barriers are an order of magnitude more likely than write-barriers (although this can certainly vary depending on the application), so read-barriers are even more performance-sensitive.
 Generational GC&rsquo;s for example usually get by with just a write barrier, no read barrier needed.
 ZGC needs a read barrier but no write barrier.
 For concurrent compaction I haven&rsquo;t seen a solution without read barriers.</p>
-
 <p>Another factor to consider:
 Even if a GC needs some type of barrier, they might &ldquo;only&rdquo; be required when reading or writing references in the heap.
 Reading or writing primitives like <code>int</code> or <code>double</code> might not require the barrier.</p>
-
-<h3 id="reference-coloring">Reference coloring</h3>
-
+<h3 id="reference-coloring">
+  Reference coloring
+  <a class="heading-link" href="#reference-coloring">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>The key to understanding ZGC is reference coloring.
-ZGC stores additional <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59">metadata</a> in heap references.
-On x64 a reference is 64-bit wide (ZGC doesn&rsquo;t support compressed oops or class pointers at the moment), but today&rsquo;s hardware actually limits a reference to 48-bit for <a href="https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details">virtual memory addresses</a>.
+ZGC stores additional <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59"  class="external-link" target="_blank" rel="noopener">metadata</a> in heap references.
+On x64 a reference is 64-bit wide (ZGC doesn&rsquo;t support compressed oops or class pointers at the moment), but today&rsquo;s hardware actually limits a reference to 48-bit for <a href="https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details"  class="external-link" target="_blank" rel="noopener">virtual memory addresses</a>.
 Although to be exact only 47-bit, since bit 47 determines the value of bits 48-63 (for our purpose those bits are always 0).</p>
-
 <p>ZGC reserves the first 42-bits for the actual address of the object (referenced to as <em>offset</em> in the source code).
 42-bit addresses give you a theoretical heap limitation of 4TB in ZGC.
 The remaining bits are used for these flags: <code>finalizable</code>, <code>remapped</code>, <code>marked1</code> and <code>marked0</code> (one bit is reserved for future use).
-There is a really nice ASCII drawing in ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59">source</a> that shows all these bits:</p>
-
-<pre><code> 6                 4 4 4  4 4                                             0
+There is a really nice ASCII drawing in ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l59"  class="external-link" target="_blank" rel="noopener">source</a> that shows all these bits:</p>
+<pre tabindex="0"><code> 6                 4 4 4  4 4                                             0
  3                 7 6 5  2 1                                             0
 +-------------------+-+----+-----------------------------------------------+
 |00000000 00000000 0|0|1111|11 11111111 11111111 11111111 11111111 11111111|
@@ -206,21 +240,16 @@ There is a really nice ASCII drawing in ZGC&rsquo;s <a href="http://hg.openjdk.j
 |                   * 46-46 Unused (1-bit, always zero)
 |
 * 63-47 Fixed (17-bits, always zero)
-</code></pre>
-
-<p>Having metadata information in heap references does make dereferencing more expensive, since the address needs to be masked to get the <em>real</em> address (without metainformation). ZGC employs a nice trick to avoid this: When reading from memory exactly one bit of <code>marked0</code>, <code>marked1</code> or <code>remapped</code> is set.
-When allocating a page at offset <code>x</code>, ZGC maps the same page to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l212">3 different address</a>:</p>
-
+</code></pre><p>Having metadata information in heap references does make dereferencing more expensive, since the address needs to be masked to get the <em>real</em> address (without metainformation). ZGC employs a nice trick to avoid this: When reading from memory exactly one bit of <code>marked0</code>, <code>marked1</code> or <code>remapped</code> is set.
+When allocating a page at offset <code>x</code>, ZGC maps the same page to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l212"  class="external-link" target="_blank" rel="noopener">3 different address</a>:</p>
 <ol>
 <li>for <code>marked0</code>: <code>(0b0001 &lt;&lt; 42) | x</code></li>
 <li>for <code>marked1</code>: <code>(0b0010 &lt;&lt; 42) | x</code></li>
 <li>for <code>remapped</code>: <code>(0b0100 &lt;&lt; 42) | x</code></li>
 </ol>
-
 <p>ZGC therefore just reserves 16TB of address space (but not actually uses all of this memory) starting at address 4TB.
-Here is another nice drawing from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l39">source</a>:</p>
-
-<pre><code>  +--------------------------------+ 0x0000140000000000 (20TB)
+Here is another nice drawing from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zGlobals_linux_x86.hpp#l39"  class="external-link" target="_blank" rel="noopener">source</a>:</p>
+<pre tabindex="0"><code>  +--------------------------------+ 0x0000140000000000 (20TB)
   |         Remapped View          |
   +--------------------------------+ 0x0000100000000000 (16TB)
   |     (Reserved, but unused)     |
@@ -229,115 +258,105 @@ Here is another nice drawing from ZGC&rsquo;s <a href="http://hg.openjdk.java.ne
   +--------------------------------+ 0x0000080000000000 (8TB)
   |         Marked0 View           |
   +--------------------------------+ 0x0000040000000000 (4TB)
-</code></pre>
-
-<p>At any point of time only one of these 3 views is in use.
-So for debugging the unused views can be <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l230">unmapped</a> to better verify correctness.</p>
-
-<h3 id="pages-physical-virtual-memory">Pages &amp; Physical &amp; Virtual Memory</h3>
-
+</code></pre><p>At any point of time only one of these 3 views is in use.
+So for debugging the unused views can be <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l230"  class="external-link" target="_blank" rel="noopener">unmapped</a> to better verify correctness.</p>
+<h3 id="pages--physical--virtual-memory">
+  Pages &amp; Physical &amp; Virtual Memory
+  <a class="heading-link" href="#pages--physical--virtual-memory">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>Shenandoah separates the heap into a large number of equally-sized <em>regions</em>.
 An object usually does not span multiple regions, except for large objects that do not fit into a single region.
 Those large objects need to be allocated in multiple contiguous regions.
 I quite like this approach because it is so simple.</p>
-
 <p>ZGC is quite similar to Shenandoah in this regard.
-In ZGC&rsquo;s parlance regions are called <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zPage.hpp#l34">pages</a>.
+In ZGC&rsquo;s parlance regions are called <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zPage.hpp#l34"  class="external-link" target="_blank" rel="noopener">pages</a>.
 The major difference to Shenandoah: Pages in ZGC can have different sizes (but always a multiple of 2MB on x64).
 There are 3 different page types in ZGC: <em>small</em> (2MB size), <em>medium</em> (32MB size) and <em>large</em> (some multiple of 2MB).
 Small objects (up to 256KB size) are allocated in small pages, medium-sized objects (up to 4MB) are allocated in medium pages.
 Objects larger than 4MB are allocated in large pages.
 Large pages can only store exactly one object, in constrast to small or medium pages.
 Somewhat confusingly large pages can actually be smaller than medium pages (e.g. for a large object with a size of 6MB).</p>
-
 <p>Another nice property of ZGC is, that it also differentiates between <em>physical</em> and <em>virtual</em> memory.
 The idea behind this is that there usually is plenty of virtual memory available (always 4TB in ZGC) while physical memory is more scarce.
 Physical memory can be expanded up to the maximum heap size (set with <code>-Xmx</code> for the JVM), so this tends to be much less than the 4 TB of virtual memory.
 Allocating a page of a certain size in ZGC means allocating both physical and virtual memory.
 With ZGC the physical memory doesn&rsquo;t need to be contiguous - only the virtual memory space.
 So why is this actually a nice property?</p>
-
 <p>Allocating a contiguous range of virtual memory should be easy, since we usually have more than enough of it.
 But it is quite easy to imagine a situation where we have 3 free pages with size 2MB somewhere in the physical memory, but we need 6MB of contiguous memory for a large object allocation.
 There is enough free physical memory but unfortunately this memory is non-contiguous.
-ZGC is able to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l160">map</a> this non-contiguous physical pages to a single contiguous virtual memory space.
+ZGC is able to <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/os_cpu/linux_x86/zPhysicalMemoryBacking_linux_x86.cpp#l160"  class="external-link" target="_blank" rel="noopener">map</a> this non-contiguous physical pages to a single contiguous virtual memory space.
 If this wasn&rsquo;t possible, we would have run out of memory.</p>
-
-<p>On Linux the <em>physical</em> memory is basically an anonymous file that is only stored in RAM (and not on disk), ZGC uses <a href="https://www.systutorials.com/docs/linux/man/2-memfd_create/">memfd_create</a> to create it.
-The file can then be extended with <a href="https://www.systutorials.com/docs/linux/man/2-ftruncate/">ftruncate</a>, ZGC is allowed to extend the physical memory (= the anonymous file) up to the maximum heap size.
-Physical memory is then <a href="https://www.systutorials.com/docs/linux/man/2-mmap/">mmap</a>ed into the virtual address space.</p>
-
-<h3 id="marking-relocating-objects">Marking &amp; Relocating objects</h3>
-
+<p>On Linux the <em>physical</em> memory is basically an anonymous file that is only stored in RAM (and not on disk), ZGC uses <a href="https://www.systutorials.com/docs/linux/man/2-memfd_create/"  class="external-link" target="_blank" rel="noopener">memfd_create</a> to create it.
+The file can then be extended with <a href="https://www.systutorials.com/docs/linux/man/2-ftruncate/"  class="external-link" target="_blank" rel="noopener">ftruncate</a>, ZGC is allowed to extend the physical memory (= the anonymous file) up to the maximum heap size.
+Physical memory is then <a href="https://www.systutorials.com/docs/linux/man/2-mmap/"  class="external-link" target="_blank" rel="noopener">mmap</a>ed into the virtual address space.</p>
+<h3 id="marking--relocating-objects">
+  Marking &amp; Relocating objects
+  <a class="heading-link" href="#marking--relocating-objects">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>A collection is split into two major phases: marking &amp; relocating.
-(Actually there are more than those two phases but see the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l301">source</a> for more details).</p>
-
+(Actually there are more than those two phases but see the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l301"  class="external-link" target="_blank" rel="noopener">source</a> for more details).</p>
 <p>A GC cycle starts with the marking phase, which marks all reachable objects.
 At the end of this phase we know which objects are still alive and which are garbage.
 ZGC stores this information in the so called live map for each page.
-A live map is a <a href="https://en.wikipedia.org/wiki/Bit_array">bitmap</a> that stores whether the object at the given index is strongly-reachable and/or final-reachable (for objects with a <code>finalize</code>-method).</p>
-
-<p>During the marking-phase the <a href="#load-barrier">load-barrier</a> in application-threads pushes unmarked references into a thread-local marking buffer.
+A live map is a <a href="https://en.wikipedia.org/wiki/Bit_array"  class="external-link" target="_blank" rel="noopener">bitmap</a> that stores whether the object at the given index is strongly-reachable and/or final-reachable (for objects with a <code>finalize</code>-method).</p>
+<p>During the marking-phase the <a href="#load-barrier" >load-barrier</a> in application-threads pushes unmarked references into a thread-local marking buffer.
 As soon as this buffer is full, the GC threads can take ownership of this buffer and recursively traverse all reachable objects from this buffer.
 Marking in an application thread just pushes the reference into a buffer, the GC threads are responsible for walking the object graph and updating the live map.</p>
-
 <p>After marking ZGC needs to relocate all live objects in the relocation set.
 The relocation set is a set of pages, that were chosen to be evacuated based on some criteria after marking (e.g. those page with the most amount of garbage).
-An object is either relocated by a GC thread or an application thread (again through the <a href="#load-barrier">load-barrier</a>).
+An object is either relocated by a GC thread or an application thread (again through the <a href="#load-barrier" >load-barrier</a>).
 ZGC allocates a forwarding table for each page in the relocation set.
 The forwarding table is basically a hash map that stores the address an object has been relocated to (if the object has already been relocated).</p>
-
 <p>The advantage with ZGC&rsquo;s approach is that we only need to allocate space for the forwarding pointer for pages in the relocation set.
 Shenandoah in comparison stores the forwarding pointer in the object itself for each and every object, which has some memory overhead.</p>
-
 <p>The GC threads walk over the live objects in the relocation set and relocate all those objects that haven&rsquo;t been relocated yet.
 It could even happen that an application thread and a GC thread try to relocate the same object at the same time, in this case the first thread to relocate the object wins.
-ZGC uses an atomic <a href="https://en.wikipedia.org/wiki/Compare-and-swap">CAS</a>-operation to determine a winner.</p>
-
-<p>While not marking the <a href="#load-barrier">load-barrier</a> relocates or remaps all references loaded from the heap.
+ZGC uses an atomic <a href="https://en.wikipedia.org/wiki/Compare-and-swap"  class="external-link" target="_blank" rel="noopener">CAS</a>-operation to determine a winner.</p>
+<p>While not marking the <a href="#load-barrier" >load-barrier</a> relocates or remaps all references loaded from the heap.
 That ensure that every new reference the mutator sees, already points to the newest copy of an object.
 Remapping an object means looking up the new object address in the forwarding table.</p>
-
 <p>The relocation phase is finished as soon as the GC threads are finished walking the relocation set.
 Although that means all objects have been relocated, there will generally still be references into the relocation set, that need to be <em>remapped</em> to their new addresses.
 These reference will then be healed by trapping load-barriers or if this doesn&rsquo;t happen soon enough by the next marking cycle.
 That means marking also needs to inspect the forward table to <em>remap</em> (but not relocate - all objects are guaranteed to be relocated) objects to their new addresses.</p>
-
 <p>This also explains why there are two marking bits (<code>marked0</code> and <code>marked1</code>) in an object reference.
 The marking phase alternates between the <code>marked0</code> and <code>marked1</code> bit.
 After the relocation phase there may still be references that haven&rsquo;t been <code>remapped</code> and thus have still the bit from the last marking cycle set.
 If the new marking phase would use the same marking bit, the load-barrier would detect this reference as already marked.</p>
-
-<h3 id="load-barrier">Load-Barrier</h3>
-
+<h3 id="load-barrier">
+  Load-Barrier
+  <a class="heading-link" href="#load-barrier">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>ZGC needs a so called load-barrier (also referred to as read-barrier) when reading a reference from the heap.
 We need to insert this load-barrier each time the Java program accesses a field of object type, e.g. <code>obj.field</code>.
 Accessing fields of some other primitive type do not need a barrier, e.g. <code>obj.anInt</code> or <code>obj.anDouble</code>.
 ZGC doesn&rsquo;t need store/write-barriers for <code>obj.field = someValue</code>.</p>
-
-<p>Depending on the stage the GC is currently in (stored in the global variable <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l27">ZGlobalPhase</a>), the barrier either marks the object or relocates it if the reference isn&rsquo;t already marked or <em>remapped</em>.</p>
-
-<p>The global variables <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l33">ZAddressGoodMask</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l34">ZAddressBadMask</a> store the mask that determines if a reference is already considered good (that means already marked or remapped/relocated) or if there is still some action necessary.
-These variables are only changed at the start of marking- and relocation-phase and both at the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zAddress.cpp#l31">same time</a>.
-This table from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.hpp#l99">source</a> gives a nice overview in which state these masks can be:</p>
-
-<pre><code>               GoodMask         BadMask          WeakGoodMask     WeakBadMask
+<p>Depending on the stage the GC is currently in (stored in the global variable <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l27"  class="external-link" target="_blank" rel="noopener">ZGlobalPhase</a>), the barrier either marks the object or relocates it if the reference isn&rsquo;t already marked or <em>remapped</em>.</p>
+<p>The global variables <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l33"  class="external-link" target="_blank" rel="noopener">ZAddressGoodMask</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.cpp#l34"  class="external-link" target="_blank" rel="noopener">ZAddressBadMask</a> store the mask that determines if a reference is already considered good (that means already marked or remapped/relocated) or if there is still some action necessary.
+These variables are only changed at the start of marking- and relocation-phase and both at the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zAddress.cpp#l31"  class="external-link" target="_blank" rel="noopener">same time</a>.
+This table from ZGC&rsquo;s <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zGlobals.hpp#l99"  class="external-link" target="_blank" rel="noopener">source</a> gives a nice overview in which state these masks can be:</p>
+<pre tabindex="0"><code>               GoodMask         BadMask          WeakGoodMask     WeakBadMask
                --------------------------------------------------------------
 Marked0        001              110              101              010
 Marked1        010              101              110              001
 Remapped       100              011              100              011
-</code></pre>
-
-<p>Assembly code for the barrier can be seen in the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/cpu/x86/macroAssembler_x86.cpp#l6706">MacroAssembler</a> for x64, I will only show some pseudo assembly code for this barrier:</p>
-
-<pre><code>mov rax, [r10 + some_field_offset]
+</code></pre><p>Assembly code for the barrier can be seen in the <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/cpu/x86/macroAssembler_x86.cpp#l6706"  class="external-link" target="_blank" rel="noopener">MacroAssembler</a> for x64, I will only show some pseudo assembly code for this barrier:</p>
+<pre tabindex="0"><code>mov rax, [r10 + some_field_offset]
 test rax, [address of ZAddressBadMask]
 jnz load_barrier_mark_or_relocate
 
 # otherwise reference in rax is considered good
-</code></pre>
-
-<p>The first assembly instruction reads a reference from the heap: <code>r10</code> stores the object reference and <code>some_field_offset</code> is some constant field offset.
+</code></pre><p>The first assembly instruction reads a reference from the heap: <code>r10</code> stores the object reference and <code>some_field_offset</code> is some constant field offset.
 The loaded reference is stored in the <code>rax</code> register.
 This reference is then tested (this is just an bitwise-and) against the current bad mask.
 Synchronization isn&rsquo;t necessary here since <code>ZAddressBadMask</code> only gets updated when the world is stopped.
@@ -347,52 +366,157 @@ After this action it needs to update the reference stored in <code>r10 + some_fi
 This is necessary such that subsequent loads from this field return a good reference.
 Since we might need to update the reference-address, we need to use two registers <code>r10</code> and <code>rax</code> for the loaded reference and the objects address.
 The good reference also needs to be stored into register <code>rax</code>, such that execution can continue just as when we would have loaded a good reference.</p>
-
 <p>Since every single reference needs to be marked or relocated, throughput is likely to decrease right after starting a marking- or relocation-phase.
 This should get better quite fast when most references are healed.</p>
-
-<h3 id="stop-the-world-pauses">Stop-the-World Pauses</h3>
-
+<h3 id="stop-the-world-pauses">
+  Stop-the-World Pauses
+  <a class="heading-link" href="#stop-the-world-pauses">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>ZGC doesn&rsquo;t get rid of stop-the-world pauses completely.
-The collector needs pauses when <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l304">starting marking</a>, <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l316">ending marking</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l356">starting relocation</a>.
+The collector needs pauses when <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l304"  class="external-link" target="_blank" rel="noopener">starting marking</a>, <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l316"  class="external-link" target="_blank" rel="noopener">ending marking</a> and <a href="http://hg.openjdk.java.net/zgc/zgc/file/59c07aef65ac/src/hotspot/share/gc/z/zDriver.cpp#l356"  class="external-link" target="_blank" rel="noopener">starting relocation</a>.
 But this pauses are usually quite short - only a few milliseconds.</p>
-
 <p>When starting marking ZGC traverses all thread stacks to mark the applications root set.
 The root set is the set of object references from where traversing the object graph starts.
 It usually consists of local and global variables, but also other internal VM structures (e.g. JNI handles).</p>
-
 <p>Another pause is required when ending the marking phase.
 In this pause the GC needs to empty and traverse all thread-local marking buffers.
 Since the GC could discover a large unmarked sub-graph this could take longer.
 ZGC tries to avoid this by stopping the end of marking phase after 1 millisecond.
 It returns into the concurrent marking phase until the whole graph is traversed, then the end of marking phase can be started again.</p>
-
 <p>Starting relocation phase pauses the application again.
 This phase is quite similar to starting marking, with the difference that this phase relocates the objects in the root set.</p>
-
-<h3 id="conclusion">Conclusion</h3>
-
+<h3 id="conclusion">
+  Conclusion
+  <a class="heading-link" href="#conclusion">
+    <i class="fa-solid fa-link" aria-hidden="true" title="Link to heading"></i>
+    <span class="sr-only">Link to heading</span>
+  </a>
+</h3>
 <p>I hope I could give a short introduction into ZGC.
 I certainly couldn&rsquo;t describe every detail about this GC in a single blog post.
-If you need more information, ZGC is <a href="http://cr.openjdk.java.net/~pliden/zgc/">open-source</a>, so it is possible to study the whole implementation.</p>
+If you need more information, ZGC is <a href="http://cr.openjdk.java.net/~pliden/zgc/"  class="external-link" target="_blank" rel="noopener">open-source</a>, so it is possible to study the whole implementation.</p>
 
-                <br>
-                <p><a href="/blog/">Back to posts</a></p>
-            </div>
-            <br>
-            <div class="disqus">
-                
-            </div>
-        </div>
+      </div>
+
+
+      <footer>
+        
+
+
+        
+<ul>
+  
+    
+      <li>
+        <a href="https://github.com/dinfuehr/" aria-label="Github"   >
+          <i class="fa fa-github" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
+          <i class="fa fa-twitter" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
+          <i class="fa fa-envelope" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+    
+      <li>
+        <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
+          <i class="fa fa-rss" aria-hidden="true"></i>
+        </a>
+      </li>
+    
+  
+</ul>
+
+        
+        
+        
+        
+        
+        
+        
+      </footer>
+    </article>
+
+    
+  </section>
+
     </div>
-</section>
+
+    <footer class="footer">
+  <section class="container">
+    ©
+    
+    2025
+     Dominik Inführ 
+    ·
+    
+    Powered by <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> & <a href="https://github.com/luizdepra/hugo-coder/" target="_blank" rel="noopener">Coder</a>.
+    
+  </section>
+</footer>
+
+  </main>
+
+  
+
+  
+  
+  <script src="/js/coder.min.6ae284be93d2d19dad1f02b0039508d9aab3180a12a06dcc71b0b0ef7825a317.js" integrity="sha256-auKEvpPS0Z2tHwKwA5UI2aqzGAoSoG3McbCw73gloxc="></script>
+  
+
+  
+
+  
 
 
+  
 
+  
 
+  
 
+  
 
+  
 
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
 </body>
 </html>
-
