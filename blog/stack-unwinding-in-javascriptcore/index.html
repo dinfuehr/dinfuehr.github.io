@@ -128,17 +128,38 @@ This document describes how JSC still manages to unwind the stack.">
 
     <div class="content">
       
-  <section class="container page">
-  <article>
-    <header>
-      <h1 class="title">
-        <a class="title-link" href="https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/">
-          Stack Unwinding in JavaScriptCore
-        </a>
-      </h1>
-    </header>
+  <section class="container post">
+    <article>
+      <header>
+        <div class="post-title">
+          <h1 class="title">
+            <a class="title-link" href="https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/">
+              Stack Unwinding in JavaScriptCore
+            </a>
+          </h1>
+        </div>
+        <div class="post-meta">
+          <div class="date">
+            <span class="posted-on">
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              <time datetime="2018-11-15T22:36:24&#43;02:00">
+                November 15, 2018
+              </time>
+            </span>
+            <span class="reading-time">
+              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              7-minute read
+            </span>
+          </div>
+          
+          
+          
+        </div>
+      </header>
 
-    <p>JavaScriptCore (JSC, <a href="https://webkit.org/"  class="external-link" target="_blank" rel="noopener">WebKit</a>&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
+      <div class="post-content">
+        
+        <p>JavaScriptCore (JSC, <a href="https://webkit.org/"  class="external-link" target="_blank" rel="noopener">WebKit</a>&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
 This is not so simple since JS and native/C++ can be arbitrarily intertwined and JS call frames do not match the system&rsquo;s calling convention.
 On the other hand while JSC controls JS stack frames and knows how to unwind them, it can&rsquo;t do the same thing for native C++ stack frames since this is defined by the compiler (its flags) and/or system.
 This document describes how JSC still manages to unwind the stack.</p>
@@ -271,10 +292,67 @@ Having these thunks at the JS to C++-boundaries lets JSC use registers for diffe
 </h3>
 <p>Much of the information above is quite implementation-specific, nevertheless it is still very interesting how JSC manages to traverse the stack since quite a lot of functionality is affected by this (e.g. dumping stack traces, exception handling, etc.).</p>
 
-  </article>
-</section>
+      </div>
 
-  
+
+      <footer>
+        
+
+
+        
+        
+<div class="centered">
+  <div class="about">
+    <ul>
+      
+        
+          <li>
+            <a href="https://github.com/dinfuehr/" aria-label="Github"   >
+              <i class="fa fa-github" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
+              <i class="fa fa-twitter" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
+              <i class="fa fa-envelope" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
+              <i class="fa fa-rss" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+    </ul>
+  </div>
+</div>
+
+        
+        
+        
+        
+        
+        
+        
+      </footer>
+    </article>
+
+    
+  </section>
 
     </div>
 

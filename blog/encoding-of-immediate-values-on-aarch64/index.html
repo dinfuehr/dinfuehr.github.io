@@ -134,17 +134,38 @@ mov rax, 0x1122334455667788 # encoded as: 0x48, 0xB8, 0x88, 0x77, 0x66, 0x55, 0x
 
     <div class="content">
       
-  <section class="container page">
-  <article>
-    <header>
-      <h1 class="title">
-        <a class="title-link" href="https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/">
-          Encoding of immediate values on AArch64
-        </a>
-      </h1>
-    </header>
+  <section class="container post">
+    <article>
+      <header>
+        <div class="post-title">
+          <h1 class="title">
+            <a class="title-link" href="https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/">
+              Encoding of immediate values on AArch64
+            </a>
+          </h1>
+        </div>
+        <div class="post-meta">
+          <div class="date">
+            <span class="posted-on">
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              <time datetime="2017-04-20T20:33:37&#43;02:00">
+                April 20, 2017
+              </time>
+            </span>
+            <span class="reading-time">
+              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              7-minute read
+            </span>
+          </div>
+          
+          
+          
+        </div>
+      </header>
 
-    <p>AArch64 is an ISA with a fixed instruction width of 32-bit.
+      <div class="post-content">
+        
+        <p>AArch64 is an ISA with a fixed instruction width of 32-bit.
 This obviously means there is not enough space to store a 64-bit immediate in a single instruction.
 Before working with AArch64 I was only familiar with x86 where this is a bit easier since instructions can have variable-width.
 A 64-bit immediate on x86-64 is really just the sequence of bytes:</p>
@@ -318,10 +339,67 @@ Scrolling over all values, element sizes, rotations etc. should give you a quick
 (There is even one with floating-point).
 But IMHO they are not as complicated as the logical immediate class.</p>
 
-  </article>
-</section>
+      </div>
 
-  
+
+      <footer>
+        
+
+
+        
+        
+<div class="centered">
+  <div class="about">
+    <ul>
+      
+        
+          <li>
+            <a href="https://github.com/dinfuehr/" aria-label="Github"   >
+              <i class="fa fa-github" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="https://twitter.com/dinfuehr/" aria-label="Twitter"   >
+              <i class="fa fa-twitter" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="mailto:dominik.infuehr@gmail.com" aria-label="Email"   >
+              <i class="fa fa-envelope" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+        
+          <li>
+            <a href="https://dinfuehr.github.io/index.xml" aria-label="RSS"   >
+              <i class="fa fa-rss" aria-hidden="true"></i>
+            </a>
+          </li>
+        
+      
+    </ul>
+  </div>
+</div>
+
+        
+        
+        
+        
+        
+        
+        
+      </footer>
+    </article>
+
+    
+  </section>
 
     </div>
 
