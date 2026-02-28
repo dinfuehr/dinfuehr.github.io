@@ -15,20 +15,21 @@
 <meta name="author" content="Dominik Inführ">
 <meta name="description" content="JavaScriptCore (JSC, WebKit&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
 This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system&rsquo;s calling convention.
-On the other hand while JSC controls JS stack frames and knows how to unwind them, it can&rsquo;t do the same thing for native C&#43;&#43; stack frames since this is defined by the compiler (its flags) and/or system.
-This document describes how JSC still manages to unwind the stack.">
+While JSC fully controls JS stack frames and knows how to unwind them, this isn&rsquo;t the case with C&#43;&#43; stack frames.
+Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system.
+This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
 <meta name="keywords" content="">
 
 
 
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Stack Unwinding in JavaScriptCore">
-  <meta name="twitter:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. On the other hand while JSC controls JS stack frames and knows how to unwind them, it can’t do the same thing for native C&#43;&#43; stack frames since this is defined by the compiler (its flags) and/or system. This document describes how JSC still manages to unwind the stack.">
+  <meta name="twitter:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
 
 <meta property="og:url" content="https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/">
   <meta property="og:site_name" content="Dominik&#39;s Blog">
   <meta property="og:title" content="Stack Unwinding in JavaScriptCore">
-  <meta property="og:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. On the other hand while JSC controls JS stack frames and knows how to unwind them, it can’t do the same thing for native C&#43;&#43; stack frames since this is defined by the compiler (its flags) and/or system. This document describes how JSC still manages to unwind the stack.">
+  <meta property="og:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="blog">
@@ -48,7 +49,7 @@ This document describes how JSC still manages to unwind the stack.">
 
   
   
-  <link rel="stylesheet" href="/css/coder.min.c8e4eea149ae1dc7c61ba9b0781793711a4e657f7e07a4413f9abc46d52dffc4.css" integrity="sha256-yOTuoUmuHcfGG6mweBeTcRpOZX9&#43;B6RBP5q8RtUt/8Q=" crossorigin="anonymous" media="screen" />
+  <link rel="stylesheet" href="/css/coder.min.f03d6359cf766772af14fbe07ce6aca734b321c2e15acba0bbf4e2254941c460.css" integrity="sha256-8D1jWc92Z3KvFPvgfOaspzSzIcLhWsugu/TiJUlBxGA=" crossorigin="anonymous" media="screen" />
 
 
 
@@ -148,7 +149,7 @@ This document describes how JSC still manages to unwind the stack.">
             </span>
             <span class="reading-time">
               <i class="fa-solid fa-clock" aria-hidden="true"></i>
-              7-minute read
+              6-minute read
             </span>
           </div>
           
@@ -161,8 +162,9 @@ This document describes how JSC still manages to unwind the stack.">
         
         <p>JavaScriptCore (JSC, <a href="https://webkit.org/"  class="external-link" target="_blank" rel="noopener">WebKit</a>&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
 This is not so simple since JS and native/C++ can be arbitrarily intertwined and JS call frames do not match the system&rsquo;s calling convention.
-On the other hand while JSC controls JS stack frames and knows how to unwind them, it can&rsquo;t do the same thing for native C++ stack frames since this is defined by the compiler (its flags) and/or system.
-This document describes how JSC still manages to unwind the stack.</p>
+While JSC fully controls JS stack frames and knows how to unwind them, this isn&rsquo;t the case with C++ stack frames.
+Such stack frames are set up by the C++ compiler and are dependent on the flags/system.
+This post describes how JSC manages to unwind the stack in the presence of native stack frames.</p>
 <h3 id="jscs-calling-convention">
   JSC&rsquo;s Calling Convention
   <a class="heading-link" href="#jscs-calling-convention">
@@ -173,7 +175,7 @@ This document describes how JSC still manages to unwind the stack.</p>
 <p>JSC uses its own calling-convention for JS-Functions.
 This convention is used by the interpreter, the baseline JIT and its optimizing compilers DFG and FTL, such that JS-functions emitted by different compilers are able to interoperate with each other.</p>
 <p><img src="/images/jsc-callframe.png" alt="JSC call frame"></p>
-<p>All arguments are passed on the stack, there are also some <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/interpreter/CallFrame.h?rev=238247#L78"  class="external-link" target="_blank" rel="noopener">additional values</a> passed as argument.</p>
+<p>All arguments are passed on the stack, there are also some <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/interpreter/CallFrame.h#L139-L143"  class="external-link" target="_blank" rel="noopener">additional values</a> passed as argument.</p>
 <h3 id="calling-js-functions-from-c">
   Calling JS-Functions from C++
   <a class="heading-link" href="#calling-js-functions-from-c">
@@ -181,39 +183,20 @@ This convention is used by the interpreter, the baseline JIT and its optimizing 
     <span class="sr-only">Link to heading</span>
   </a>
 </h3>
-<p>JSC&rsquo;s calling convention is quite different to the one used by C++.
-That means that C++ can&rsquo;t directly call JS-Functions compiled by JSC - there needs to be an intermediate step.</p>
+<p>Since JSC&rsquo;s calling convention is quite different to the C ABI, C++ can&rsquo;t directly call JS-Functions compiled by JSC.
+JSC needs a short trampoline to translate between them: <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter.asm#L1855"  class="external-link" target="_blank" rel="noopener">vmEntryToJavaScript</a>.</p>
 <p><img src="/images/jsc-calljs.png" alt="JS call"></p>
-<p>In JSC this intermediate step is <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter.asm?rev=238247#L1255"  class="external-link" target="_blank" rel="noopener">vmEntryToJavaScript</a> that is called by C++.
-It has quite some responsibilities:</p>
+<p>C++ doesn&rsquo;t call the JS function directly - it calls <code>vmEntryToJavaScript</code> instead.
+This trampoline has quite some responsibilities:</p>
 <ul>
-<li>allocates and initializes a <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/interpreter/VMEntryRecord.h?rev=238247#L37"  class="external-link" target="_blank" rel="noopener">VMEntryRecord</a> on the stack, that is later used for stack unwinding,</li>
+<li>allocates and initializes a <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/interpreter/VMEntryRecord.h#L38"  class="external-link" target="_blank" rel="noopener">VMEntryRecord</a> on the stack, that is later used for stack unwinding,</li>
 <li>it pushes the arguments on the stack but also everything else that is required by JSC&rsquo;s calling convention,</li>
 <li>executes the actual JS-Function,</li>
 <li>and after function execution it removes the stack frame and returns to the caller.</li>
 </ul>
-<p>Not all JS-Functions in JSC are implemented in JS, some are actually implemented in C++.
-Although written in C++, they still make use of JSC&rsquo;s calling convention for passing arguments.
-Here is an example for a <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/jsc.cpp?rev=238247#L1127"  class="external-link" target="_blank" rel="noopener">JS-function</a> implemented in C++:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="n">EncodedJSValue</span> <span class="n">JSC_HOST_CALL</span> <span class="nf">functionSleepSeconds</span><span class="p">(</span><span class="n">ExecState</span><span class="o">*</span> <span class="n">exec</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">VM</span><span class="o">&amp;</span> <span class="n">vm</span> <span class="o">=</span> <span class="n">exec</span><span class="o">-&gt;</span><span class="n">vm</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">scope</span> <span class="o">=</span> <span class="n">DECLARE_THROW_SCOPE</span><span class="p">(</span><span class="n">vm</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">exec</span><span class="o">-&gt;</span><span class="n">argumentCount</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="n">Seconds</span> <span class="n">seconds</span> <span class="o">=</span> <span class="n">Seconds</span><span class="p">(</span><span class="n">exec</span><span class="o">-&gt;</span><span class="n">argument</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">toNumber</span><span class="p">(</span><span class="n">exec</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">        <span class="n">RETURN_IF_EXCEPTION</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">encodedJSValue</span><span class="p">());</span>
-</span></span><span class="line"><span class="cl">        <span class="n">sleep</span><span class="p">(</span><span class="n">seconds</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">JSValue</span><span class="o">::</span><span class="n">encode</span><span class="p">(</span><span class="n">jsUndefined</span><span class="p">());</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>All these functions have exactly one argument: an <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/interpreter/CallFrame.h?rev=238247#L44"  class="external-link" target="_blank" rel="noopener">ExecState</a>-pointer.
-The frame pointer in JSC&rsquo;s calling convention is passed to this argument.
-Arguments and callers can be accessed via this pointer (e.g. <code>exec-&gt;argument(0)</code> to get the first argument).</p>
-<p>That means there are two ways to enter the VM from C++: via a real JS function or a JS function that is backed by native code.
-The first way is handled by <code>vmEntryToJavaScript</code>, the other one by <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter.asm?rev=238247#L1264"  class="external-link" target="_blank" rel="noopener">vmEntryToNative</a>.
-Again, note that <code>vmEntryToNative</code> is used when JS functions implemented in C++ are called from C++.</p>
+<p>But note that unlike e.g. the JVM, JSC doesn&rsquo;t <a href="https://github.com/openjdk/jdk/blob/ef0851d8adbb834e1cd5aff5b3b973b953e57e2d/src/hotspot/cpu/x86/stubGenerator_x86_64.cpp#L229-L234"  class="external-link" target="_blank" rel="noopener">save</a> and <a href="https://github.com/openjdk/jdk/blob/ef0851d8adbb834e1cd5aff5b3b973b953e57e2d/src/hotspot/cpu/x86/stubGenerator_x86_64.cpp#L356-L367"  class="external-link" target="_blank" rel="noopener">restore</a> callee-saved registers here.
+JSC makes use of callee-saved registers in its internal calling convention unlike the JVM.
+(JSC only needs to do this for ARMv7 where callee-saved registers in the C ABI are used as caller-saved registers in JSC&rsquo;s calling convention).</p>
 <h3 id="calling-c-from-js">
   Calling C++ from JS
   <a class="heading-link" href="#calling-c-from-js">
@@ -221,13 +204,33 @@ Again, note that <code>vmEntryToNative</code> is used when JS functions implemen
     <span class="sr-only">Link to heading</span>
   </a>
 </h3>
-<p>JS functions can also call back into the runtime (native functions) for certain operations: there needs to be an additional intermediate step again.
-<a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter64.asm?rev=238247#L2126"  class="external-link" target="_blank" rel="noopener">nativeCallTrampoline</a> does this translation, it passes the call frame (the <code>ExecState</code>-pointer) as a single argument to the C++-function.</p>
+<p>JS code can call back to C++ by invoking JS functions which are actually implemented in C++ under the hood.
+Even though these functions are written in C++, they still need to adhere to JSC&rsquo;s calling convention.
+Here is an example for a <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/jsc.cpp#L1735"  class="external-link" target="_blank" rel="noopener">JS-function</a> implemented in C++:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="n">JSC_DEFINE_HOST_FUNCTION</span><span class="p">(</span><span class="n">functionSleepSeconds</span><span class="p">,</span> <span class="p">(</span><span class="n">JSGlobalObject</span><span class="o">*</span> <span class="n">globalObject</span><span class="p">,</span> <span class="n">CallFrame</span><span class="o">*</span> <span class="n">callFrame</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">VM</span><span class="o">&amp;</span> <span class="n">vm</span> <span class="o">=</span> <span class="n">globalObject</span><span class="o">-&gt;</span><span class="n">vm</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">scope</span> <span class="o">=</span> <span class="n">DECLARE_THROW_SCOPE</span><span class="p">(</span><span class="n">vm</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">callFrame</span><span class="o">-&gt;</span><span class="n">argumentCount</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">Seconds</span> <span class="n">seconds</span> <span class="o">=</span> <span class="n">Seconds</span><span class="p">(</span><span class="n">callFrame</span><span class="o">-&gt;</span><span class="n">argument</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">toNumber</span><span class="p">(</span><span class="n">globalObject</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">RETURN_IF_EXCEPTION</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">encodedJSValue</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sleep</span><span class="p">(</span><span class="n">seconds</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">JSValue</span><span class="o">::</span><span class="n">encode</span><span class="p">(</span><span class="n">jsUndefined</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Note that this functions gets exactly two arguments: the global object and the call frame.
+The <code>CallFrame*</code> is a pointer into JSC&rsquo;s stack frame.
+Through this pointer C++ can access all the value in the JS stack frame: So e.g. argument count, the receiver and all arguments (for example <code>callFrame-&gt;argument(0)</code>).</p>
+<p>Calling native methods like this requires another trampoline:
+<a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter64.asm#L2727"  class="external-link" target="_blank" rel="noopener">nativeCallTrampoline</a></p>
 <p><img src="/images/jsc-callc.png" alt="JS call"></p>
-<p>It also stores the current call frame in <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/runtime/VM.h?rev=238247#L512"  class="external-link" target="_blank" rel="noopener">VM::topCallFrame</a>, but we will later cover that in more detail.
-<code>nativeCallTrampoline</code> also obviously calls the native function.
-When it returns it checks <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/runtime/VM.h?rev=238247#L977"  class="external-link" target="_blank" rel="noopener">VM::m_exception</a> whether the C++-function has thrown an exception and would call into exception handling if so.
-It then returns to the caller JS function.</p>
+<p>This trampoline first sets up the two-arguments passed to the native method.
+It also stores the current call frame in <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/runtime/VM.h#L415"  class="external-link" target="_blank" rel="noopener">VM::topCallFrame</a> (this will be discussed later in more detail).
+It then invokes/calls that native function.
+When that function returns, it checks <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/runtime/VM.h#L405"  class="external-link" target="_blank" rel="noopener">VM::m_exception</a> whether the C++-function has thrown an exception and if so calls the exception handler.
+Afterwards it returns to the caller JS function.</p>
 <h3 id="stack-unwinding">
   Stack Unwinding
   <a class="heading-link" href="#stack-unwinding">
@@ -236,25 +239,22 @@ It then returns to the caller JS function.</p>
   </a>
 </h3>
 <p>JS and C++-stack frames can be arbitrarily intertwined, JSC therefore needs a way to safely unwind the stack.
-JSC doesn&rsquo;t have any knowledge about C++ stack frames - it just skips that part of the stack at once (no matter how many actual C++-function that actual are).
-For JS-function it is actual possible - and even required - to unwind function by function.</p>
+JSC doesn&rsquo;t have any knowledge about C++ stack frames, so it skips that part of the stack at once (indepedent of how many C++ stack frames there are).
+For JS functions it is possible - and required - to unwind function by function.</p>
 <p><img src="/images/jsc-stackunwinding.svg" alt="JS call"></p>
-<p>JSC stores the begin and end of the last active region of JS-stack-frames: <code>VM::topCallFrame</code> and <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/runtime/VM.h?rev=238247#L507"  class="external-link" target="_blank" rel="noopener">VM::topEntryFrame</a>.
-Unwinding that region of the stack just follows the saved frame pointer on the stack until we reach <code>topEntryFrame</code>.
-As soon as we have reached that frame, its predecessors are at least one or multiple C++ stack frames.</p>
-<p>The problem now is that JSC doesn&rsquo;t know how the compiler actually lays out the stack frame so we can only skip all C++ stack frames at once.
-We already mentioned that calling into JS from native code requires to set up a <code>VMEntryRecord</code>.
+<p>JSC stores the begin and end of the last active region of JS stack frames: <code>VM::topCallFrame</code> and <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/runtime/VM.h#L416"  class="external-link" target="_blank" rel="noopener">VM::topEntryFrame</a>.
+Unwinding that region of the stack just follows the saved frame pointer on the stack until JSC reaches <code>topEntryFrame</code>.
+As soon as we have reached that entry frame, JSC knows the next frame is a C++ frame.</p>
+<p>The problem now is that JSC doesn&rsquo;t know how large that stack frame is or where its caller frame pointer is stored.
+We already discussed that calling from native code to JS sets up a <code>VMEntryRecord</code> on the stack.
 That record stores (among other stuff) <code>m_prevTopCallFrame</code> and <code>m_prevTopEntryFrame</code>.
-This allows us to skip all C++-functions at once by continuing unwinding from <code>m_prevTopCallFrame</code>.
-We are now guaranteed to unwind JS-Functions again until we reach <code>m_prevTopEntryFrame</code>.
-As soon as we reach it, we check the next <code>VMEntryRecord</code> for <code>m_prevTopCallFrame</code> and <code>m_prevTopEntryFrame</code>.
+This allows JSC to skip all C++-functions at once by continuing unwinding from <code>m_prevTopCallFrame</code>.
+Stack unwinding can now continue from that position until it <code>m_prevTopEntryFrame</code>.
+At that point JSC can check the next <code>VMEntryRecord</code> for <code>m_prevTopCallFrame</code> and <code>m_prevTopEntryFrame</code>.
 This process is repeated until <code>m_prevTopCallFrame</code> is null.</p>
-<p>When calling into JS from C++, we therefore store the current <code>VM::topCallFrame</code> and <code>VM::topEntryFrame</code> in the <code>VMEntryRecord</code> as <code>m_prevTopCallFrame</code> and <code>m_prevTopEntryFrame</code>.
+<p>When calling into JS from C++, JSC therefore stores the current <code>VM::topCallFrame</code> and <code>VM::topEntryFrame</code> in the <code>VMEntryRecord</code> as <code>m_prevTopCallFrame</code> and <code>m_prevTopEntryFrame</code>.
 <code>VM::topCallFrame</code> and <code>VM::topEntryFrame</code> are initialized to the current call frame (of this intermediate function) and the actual callee&rsquo;s call frame.
 <code>vmEntryToJavaScript</code>/<code>vmEntryToNative</code> also need to restore the previous values when returning from the JS-Function.</p>
-<p>When calling into native code we need to set <code>VM::topCallFrame</code> to the current call frame.
-In C++ we start unwinding from <code>VM::topCallFrame</code> until we reach <code>VM::topEntryFrame</code>.
-When we reach it, JSC checks <code>VMEntryRecord</code> whether there were JS stack frames before this point.</p>
 <p>Short recap: The JS parts are unwound frame by frame, while the C++-parts are skipped all at once.
 Unwinding starts at <code>VM::topCallFrame</code>.</p>
 <p>Unwinding also needs to support inlined frames: DFG and FTL can inline a JS-function into another, however on the stack this is now one combined stack frame.
@@ -267,22 +267,21 @@ Otherwise stack traces would be missing some function calls.</p>
     <span class="sr-only">Link to heading</span>
   </a>
 </h3>
-<p>Functions need to store and restore callee-saved registers it uses.
-When unwinding the stack we might also need to inspect values in callee-saved registers, JSC therefore needs to be able to check where these registers where saved.
-<code>codeBlock</code> is already passed when calling the function, <code>codeBlock-&gt;calleeSaveRegisters()</code> returns a list with the offsets of the stored registers on the stack.</p>
-<p><a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/jit/RegisterSet.cpp?rev=238247#L218"  class="external-link" target="_blank" rel="noopener">LLInt</a>, baseline <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/jit/RegisterSet.cpp?rev=238247#L218"  class="external-link" target="_blank" rel="noopener">JIT</a> and <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/jit/RegisterSet.cpp?rev=238247#L255"  class="external-link" target="_blank" rel="noopener">DFG</a> each have a fixed list of callee-saved registers they can use and always save and restore.
-Just FTL is able to save only those callee-saved-registers that are actually used by a function.</p>
-<p>When we unwind the stack and need to check values in the callee-saved-registers, all callee-saved registers used by the VM need to be stored in the <code>VMEntryRecord</code> by <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter.asm?rev=238247#L761"  class="external-link" target="_blank" rel="noopener">copyCalleeSavesToVMEntryFrameCalleeSavesBuffer</a> and later restored by <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter.asm?rev=238247#L803"  class="external-link" target="_blank" rel="noopener">restoreCalleeSavesFromVMEntryFrameCalleeSavesBuffer</a> when calling into native code.
-This isn&rsquo;t done by default for normal native calls.</p>
-<p>Saving all possibly used <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/jit/RegisterSet.cpp?rev=238247#L172"  class="external-link" target="_blank" rel="noopener">callee-saved-registers</a> in the current <code>VMEntryRecord</code> seems to be needed for throwing exceptions and <a href="https://www.cs.ucsb.edu/~ckrintz/papers/osr.pdf"  class="external-link" target="_blank" rel="noopener">On-Stack-Replacement</a> (OSR).
+<p>As already mentioned JSC uses caller- and callee-saved registers in its calling convention.
+When unwinding the stack JSC might also need to inspect values in callee-saved registers, JSC therefore needs to be able to check where these registers where saved.
+<code>codeBlock-&gt;calleeSaveRegisters()</code> returns a list with the offsets of the stored registers on the stack.</p>
+<p><a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/jit/RegisterSet.cpp#L219"  class="external-link" target="_blank" rel="noopener">LLInt/baseline</a> and <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/jit/RegisterSet.cpp#L247"  class="external-link" target="_blank" rel="noopener">DFG</a> use predefined callee-save sets.
+FTL has the most flexibility and can use a larger set of ABI callee-saves depending on generated code.</p>
+<p>When unwinding needs callee-saved register contents, JSC snapshots them into <code>VMEntryRecord</code> via <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter.asm#L1111"  class="external-link" target="_blank" rel="noopener">copyCalleeSavesToVMEntryFrameCalleeSavesBuffer</a> and later restores them via <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter.asm#L1171"  class="external-link" target="_blank" rel="noopener">restoreCalleeSavesFromVMEntryFrameCalleeSavesBuffer</a>.
+This is used for paths like exception handling and OSR, not for the regular JS-&gt;native call.</p>
+<p>Saving all possibly used <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/jit/RegisterSet.cpp#L154"  class="external-link" target="_blank" rel="noopener">callee-saved-registers</a> in the current <code>VMEntryRecord</code> seems to be needed for throwing exceptions and <a href="https://www.cs.ucsb.edu/~ckrintz/papers/osr.pdf"  class="external-link" target="_blank" rel="noopener">On-Stack-Replacement</a> (OSR).
 The other case where we would definitely need this is for determining GC roots - but since JSC uses a conservative GC the stack isn&rsquo;t actually traversed but just examined word by word for references into the heap.</p>
 <p>The main takeaway probably is that all callee-saved registers are only saved for certain actions (throwing exceptions and OSR), but not on each call from JS to native code.
 This makes it faster to call native functions.
-VMs with precise GC would probably need to store callee-saved registers each time they call into native code.</p>
-<p>On 32-bit architectures some callee-saved registers are <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter64.asm?rev=238247#L160"  class="external-link" target="_blank" rel="noopener">saved</a> and <a href="https://trac.webkit.org/browser/webkit/trunk/Source/JavaScriptCore/llint/LowLevelInterpreter64.asm?rev=238247#L266"  class="external-link" target="_blank" rel="noopener">restored</a> when calling from C++ into JS by <code>vmEntryToJavaScript</code> and <code>vmEntryToHost</code>:
-This is because JSC actually uses some callee-saved registers.
-Although they are callee-saved registers, JSC uses them as caller-saved registers and therefore those registers only need to be saved when calling from native code into JS.
-Having these thunks at the JS to C++-boundaries lets JSC use registers for different purposes than originally intended by the system&rsquo;s ABI.</p>
+VMs with precise GC need to store callee-saved registers each time they call into native code.</p>
+<p>On ARMv7 some callee-saved registers are <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter.asm#L920"  class="external-link" target="_blank" rel="noopener">saved</a> and <a href="https://github.com/WebKit/WebKit/blob/b8fb341d225d/Source/JavaScriptCore/llint/LowLevelInterpreter.asm#L932"  class="external-link" target="_blank" rel="noopener">restored</a> when calling from C++ into JS by <code>vmEntryToJavaScript</code> and <code>vmEntryToNative</code>:
+This is because JSC internally uses them as caller-saved registers instead.
+Having these thunks at the JS to C++-boundaries lets JSC use registers differently than originally intended by the system&rsquo;s ABI.</p>
 <h3 id="conclusion">
   Conclusion
   <a class="heading-link" href="#conclusion">
@@ -360,7 +359,7 @@ Having these thunks at the JS to C++-boundaries lets JSC use registers for diffe
   <section class="container">
     ©
     
-    2025
+    2026
      Dominik Inführ 
     ·
     
