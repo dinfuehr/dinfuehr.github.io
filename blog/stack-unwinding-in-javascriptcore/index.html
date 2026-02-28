@@ -13,7 +13,7 @@
 
 
 <meta name="author" content="Dominik Inführ">
-<meta name="description" content="JavaScriptCore (JSC, WebKit&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
+<meta name="description" content="JavaScriptCore (JSC, WebKit&rsquo;s JavaScript engine) needs to be able to unwind the call stack e.g. printing stack traces or exception handling.
 This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system&rsquo;s calling convention.
 While JSC fully controls JS stack frames and knows how to unwind them, this isn&rsquo;t the case with C&#43;&#43; stack frames.
 Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system.
@@ -24,12 +24,12 @@ This post describes how JSC manages to unwind the stack in the presence of nativ
 
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Stack Unwinding in JavaScriptCore">
-  <meta name="twitter:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
+  <meta name="twitter:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to unwind the call stack e.g. printing stack traces or exception handling. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
 
 <meta property="og:url" content="https://dinfuehr.github.io/blog/stack-unwinding-in-javascriptcore/">
   <meta property="og:site_name" content="Dominik&#39;s Blog">
   <meta property="og:title" content="Stack Unwinding in JavaScriptCore">
-  <meta property="og:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
+  <meta property="og:description" content="JavaScriptCore (JSC, WebKit’s JavaScript engine) needs to be able to unwind the call stack e.g. printing stack traces or exception handling. This is not so simple since JS and native/C&#43;&#43; can be arbitrarily intertwined and JS call frames do not match the system’s calling convention. While JSC fully controls JS stack frames and knows how to unwind them, this isn’t the case with C&#43;&#43; stack frames. Such stack frames are set up by the C&#43;&#43; compiler and are dependent on the flags/system. This post describes how JSC manages to unwind the stack in the presence of native stack frames.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="blog">
@@ -160,7 +160,7 @@ This post describes how JSC manages to unwind the stack in the presence of nativ
 
       <div class="post-content">
         
-        <p>JavaScriptCore (JSC, <a href="https://webkit.org/"  class="external-link" target="_blank" rel="noopener">WebKit</a>&rsquo;s JavaScript engine) needs to be able to parse/unwind the call stack for exception handling or determining stack traces.
+        <p>JavaScriptCore (JSC, <a href="https://webkit.org/"  class="external-link" target="_blank" rel="noopener">WebKit</a>&rsquo;s JavaScript engine) needs to be able to unwind the call stack e.g. printing stack traces or exception handling.
 This is not so simple since JS and native/C++ can be arbitrarily intertwined and JS call frames do not match the system&rsquo;s calling convention.
 While JSC fully controls JS stack frames and knows how to unwind them, this isn&rsquo;t the case with C++ stack frames.
 Such stack frames are set up by the C++ compiler and are dependent on the flags/system.
